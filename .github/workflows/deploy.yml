@@ -1,0 +1,46 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+
+      - name: SSHキーを設定
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: ファイルを転送
+        run: |
+          rsync -avz --delete \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'venv/' \
+            --exclude 'venv_admin/' \
+            --exclude '*.db' \
+            --exclude '.env' \
+            --exclude '__pycache__' \
+            --exclude '*.pyc' \
+            --exclude 'logs/' \
+            --exclude 'uploads/' \
+            ./ appuser@${{ secrets.SSH_HOST }}:/home/appuser/students_deployer/
+
+      - name: サービス再起動
+        run: |
+          ssh appuser@${{ secrets.SSH_HOST }} '
+            sudo systemctl restart students_admin
+            sudo systemctl restart teacher
+            sudo systemctl restart students
+            sudo systemctl restart community_app
+            sudo systemctl reload nginx
+          '
