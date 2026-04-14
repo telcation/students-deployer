@@ -179,7 +179,7 @@ def list_by_student(db_path: str | Path, student_id: str) -> list[RequestRow]:
 
     with _connect(db_path) as conn:
         rows = conn.execute(
-            "SELECT * FROM requests WHERE student_id = ? ORDER BY id DESC",
+            "SELECT * FROM requests WHERE student_id = ? AND app_name != '_registered' ORDER BY id DESC",
             (student_id,),
         ).fetchall()
         return [_row_to_obj(r) for r in rows]
@@ -211,7 +211,7 @@ def search(
         where.append("app_name LIKE ?")
         params.append(f"%{app_name}%")
 
-    sql = "SELECT * FROM requests"
+    sql = "SELECT * FROM requests WHERE app_name != '_registered'"
     if where:
         sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY id DESC"
@@ -311,7 +311,7 @@ def list_all(db_path: str | Path) -> list[RequestRow]:
     db_path = str(db_path)
     init_db(db_path)
     with _connect(db_path) as conn:
-        rows = conn.execute("SELECT * FROM requests ORDER BY id DESC").fetchall()
+        rows = conn.execute("SELECT * FROM requests WHERE app_name != '_registered' ORDER BY id DESC").fetchall()
         return [_row_to_obj(r) for r in rows]
 
 
