@@ -1,0 +1,366 @@
+<!-- templates/students_dashboard.html -->
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>受講者 - 申請ダッシュボード</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      max-width: 1400px;
+      margin: 20px auto;
+      padding: 0 14px;
+      line-height: 1.6;
+      background: #f8fafc;
+    }
+
+    /* 新規申請を上、申請一覧を下に固定（PCでも左右にしない） */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    @media (min-width: 860px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 8px 22px rgba(2, 6, 23, .06);
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      margin: 0 0 8px;
+    }
+
+    h2 {
+      font-size: 1.05rem;
+      margin: 0 0 10px;
+    }
+
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: 800;
+      color: #334155;
+      font-size: .95rem;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 11px;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      margin-top: 6px;
+      font-size: 1rem;
+      background: #fff;
+    }
+
+    button {
+      margin-top: 12px;
+      padding: 11px 14px;
+      border: 0;
+      border-radius: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      background: #4f46e5;
+      color: #fff;
+    }
+
+    button.secondary {
+      background: #0ea5e9;
+    }
+
+    button.danger {
+      background: #ef4444;
+    }
+
+    button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .muted {
+      color: #475569;
+      font-size: .92rem;
+    }
+
+    .flash {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 12px;
+      white-space: pre-wrap;
+      border: 1px solid #cbd5e1;
+      background: #f1f5f9;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 900;
+      font-size: .85rem;
+      background: #e2e8f0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      border-top: 1px solid #e5e7eb;
+      padding: 10px 8px;
+      font-size: .95rem;
+      vertical-align: top;
+    }
+
+    th {
+      text-align: left;
+      color: #334155;
+      background: #fafafa;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    a.btnlink {
+      text-decoration: none;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-weight: 900;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      color: #111827;
+    }
+
+    .hint {
+      font-size: .9rem;
+      color: #475569;
+    }
+
+    .small {
+      font-size: .88rem;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="topbar">
+    <div>
+      <h1>受講者 - 申請ダッシュボード</h1>
+      <div class="muted">ログイン受講者番号: <span class="pill">{{ student_id }}</span></div>
+    </div>
+    <div class="row">
+      <a class="btnlink" href="{{ url_for('students_logout') }}">ログアウト</a>
+    </div>
+  </div>
+
+  {% if msg %}
+  <div class="flash">{{ msg }}</div>
+  {% endif %}
+
+  <div class="grid">
+    <!-- 新規申請（上） -->
+    <div class="card">
+      <h2>新規申請</h2>
+      <div class="muted">申請内容（バージョン等）は初回デプロイに反映されます。</div>
+
+      <form method="post" action="{{ url_for('students_request') }}">
+        <label>アプリ名（英数字/ _ / -、1〜32文字）</label>
+        <input type="text" name="app_name" placeholder="例: calendar" required>
+
+        <label>種別</label>
+        <select name="request_kind" id="kind" required>
+          <option value="static">静的サイト（HTML/CSS/JS）</option>
+          <option value="flask">Flask（Python）</option>
+          <option value="spring">Spring Boot（Java）</option>
+        </select>
+
+        <label>アプリの概要（200文字まで・日本語OK）</label>
+        <textarea name="app_desc" maxlength="200" rows="3" placeholder="例: 予定を登録して一覧表示します。トップに今日の予定を表示します。"></textarea>
+
+        <div id="flaskBox" style="display:none;">
+          <label>Python バージョン</label>
+          <select name="python_version">
+            {% for v in config.SUPPORTED_PYTHON_VERSIONS %}
+            <option value="{{ v }}" {% if v=="3.12" %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div id="springBox" style="display:none;">
+          <label>Java バージョン（release）</label>
+          <select name="java_release">
+            {% for v in config.SUPPORTED_JAVA_RELEASES %}
+            <option value="{{ v }}" {% if v|string=="17" %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="row">
+          <button type="submit">申請する</button>
+          <button type="button" class="secondary" onclick="window.location.reload();">
+            申請一覧を更新する
+          </button>
+        </div>
+
+      </form>
+
+    </div>
+
+    <!-- 申請一覧（下） -->
+    <div class="card">
+      <h2>申請一覧</h2>
+      <div class="hint">※「申請中」は編集不可（ボタン非表示）。申請取消は不可（必要なら講師が緊急削除）。</div>
+      <div style="margin-top:10px;"></div>
+
+      {% if not reqs %}
+      <div class="muted">申請がまだありません。</div>
+      {% else %}
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>アプリ名</th>
+            <th>種別</th>
+            <th>状態</th>
+            <th>アップロード</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in reqs %}
+          <tr>
+            <td>{{ r.id }}</td>
+            <td>
+              <div style="font-weight:900">{{ r.app_name }}</div>
+              {% if r.app_desc %}
+              <div class="muted small" style="white-space:pre-wrap;">{{ r.app_desc }}</div>
+              {% endif %}
+              <div class="small muted">{{ r.created_at }}</div>
+            </td>
+            <td>{{ r.request_kind }}</td>
+            <td>
+              <div class="pill">{{ r.status_jp if r.status_jp is defined else r.status }}</div>
+
+              {% if r.public_url is defined and r.public_url %}
+              <div class="small" style="margin-top:6px;">
+                <a class="btnlink" href="{{ r.public_url }}" target="_blank">{{ r.public_url }}</a>
+              </div>
+              {% endif %}
+
+              {% if r.runtime_state %}
+              <div class="small muted" style="margin-top:6px;">稼働: {{ r.runtime_state }}{% if r.service_state
+                %}（service: {{ r.service_state }}）{% endif %}</div>
+              {% endif %}
+            </td>
+
+            <td>
+              {% if r.last_upload %}
+              <div class="small">{{ r.last_upload }}</div>
+              <div class="small muted">{{ r.last_upload_at }}</div>
+              {% if r.report_exists %}
+              <div class="small" style="margin-top:6px;">
+                <a class="btnlink" href="{{ url_prefix }}/report/{{ r.id }}" target="_blank">チェックレポート</a>
+              </div>
+              {% endif %}
+              {% else %}
+              <div class="small muted">未アップロード</div>
+              {% endif %}
+
+              {% if r.status in ("done", "public", "stopped") and r.request_kind in ("static", "flask", "spring") %}
+
+              <form id="uploadForm{{ r.id }}" method="post" action="{{ url_for('students_upload') }}"
+                enctype="multipart/form-data">
+                <input type="hidden" name="request_id" value="{{ r.id }}">
+
+                <label class="small muted" style="margin-top:8px;">デプロイ前チェック（学習用途）</label>
+                <select name="deploy_check">
+                  <option value="on" selected>ON（問題があればブロック）</option>
+                  <option value="off">OFF（そのままデプロイ）</option>
+                </select>
+
+                {% if r.request_kind == 'spring' %}
+                <input type="file" name="file" accept=".jar" required>
+                {% elif r.request_kind == 'flask' %}
+                <input type="file" name="file"
+                  accept=".zip,.html,.htm,.css,.js,.json,.png,.jpg,.jpeg,.gif,.svg,.webp,.ico,.txt" required>
+                {% else %}
+                <input type="file" name="file"
+                  accept=".zip,.html,.htm,.css,.js,.json,.png,.jpg,.jpeg,.gif,.svg,.webp,.ico,.txt" required>
+                {% endif %}
+
+                <div class="row" style="margin-top:10px;">
+                  <button type="submit" class="secondary">ファイルをアップロードして再デプロイ</button>
+                </div>
+              </form>
+
+              <form id="restartForm{{ r.id }}" method="post" action="{{ url_for('students_restart') }}">
+                <input type="hidden" name="request_id" value="{{ r.id }}">
+                <div class="row" style="margin-top:10px;">
+                  <button type="submit">再デプロイ（アップロード不要）</button>
+                </div>
+              </form>
+
+              {% endif %}
+
+              {% if r.request_kind in ("flask", "spring") and r.status in ("done", "public") %}
+              <form method="post" action="{{ url_for('students_stop') }}">
+                <input type="hidden" name="request_id" value="{{ r.id }}">
+                <div class="row" style="margin-top:10px;">
+                  <button type="submit" class="danger" onclick="return confirm('このアプリのデプロイを中止（停止）します。よろしいですか？');">
+                    デプロイ中止（停止）
+                  </button>
+                </div>
+              </form>
+              {% endif %}
+
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+  </div>
+
+  <script>
+    const kind = document.getElementById('kind');
+    const flaskBox = document.getElementById('flaskBox');
+    const springBox = document.getElementById('springBox');
+
+    function sync() {
+      const v = kind.value;
+      flaskBox.style.display = (v === 'flask') ? 'block' : 'none';
+      springBox.style.display = (v === 'spring') ? 'block' : 'none';
+    }
+    kind.addEventListener('change', sync);
+    sync();
+  </script>
+</body>
+
+</html>

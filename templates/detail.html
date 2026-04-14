@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}{{ app.app_name }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb" aria-label="breadcrumbs">
+    <ul>
+        <li><a href="{{ url_for('index') }}">マイページ</a></li>
+        <li class="is-active"><a href="#" aria-current="page">{{ app.app_name }}</a></li>
+    </ul>
+</nav>
+
+<div class="box">
+    <h1 class="title is-3">{{ app.app_name }}</h1>
+    <p class="subtitle is-6">制作者: {{ app.student_id }}</p>
+    <div class="content">
+        <p style="white-space: pre-wrap;">{{ app.app_desc or '概要なし' }}</p>
+    </div>
+
+    {% if session['student_id'] == app.student_id %}
+    <hr>
+    <form method="post" action="{{ url_for('update_overview', request_id=app.id) }}">
+        <div class="field">
+            <label class="label">アプリ概要を編集</label>
+            <div class="control">
+                <textarea name="app_desc" class="textarea" rows="4"
+                    placeholder="このアプリの概要を入力してください">{{ app.app_desc or '' }}</textarea>
+            </div>
+        </div>
+        <button type="submit" class="button is-small is-link">
+            概要を保存
+        </button>
+    </form>
+    {% endif %}
+
+    {% if app.public_url %}
+    <a href="{{ app.public_url }}" target="_blank" class="button is-link is-light is-fullwidth">
+        <span class="icon"><i class="fas fa-external-link-alt"></i></span>
+        <span>アプリを開く</span>
+    </a>
+    {% endif %}
+</div>
+
+<div class="box">
+    <h2 class="title is-5">フィードバック</h2>
+    <form method="post" class="mb-5">
+        <div class="field">
+            <div class="control">
+                <textarea name="content" class="textarea" placeholder="このアプリにコメントする..." required></textarea>
+            </div>
+        </div>
+        <button type="submit" class="button is-primary">投稿する</button>
+    </form>
+
+    {% macro render_comments(comments_list) %}
+    {% for c in comments_list %}
+    <article class="media">
+        <figure class="media-left">
+            <p class="image is-32x32">
+                <img class="is-rounded" src="https://ui-avatars.com/api/?name={{ c.author_id[-2:] }}&background=random">
+            </p>
+        </figure>
+        <div class="media-content">
+            <div class="content">
+                <p>
+                    <strong>{{ c.author_id }}</strong>
+                    <small class="has-text-grey">{{ c.created_at }}</small>
+                    {% if c.edited %}
+                    <small class="has-text-grey">(編集済み)</small>
+                    {% endif %}
+                    <br>
+                    {{ c.content }}
+                </p>
+
+                {% if session['student_id'] == c.author_id %}
+                <div class="mt-1 buttons are-small">
+                    <a href="{{ url_for('edit_comment', comment_id=c.comment_id) }}" class="button is-light is-small">
+                        編集
+                    </a>
+
+                    <form method="post" action="{{ url_for('delete_comment', comment_id=c.comment_id) }}"
+                        style="display:inline" onsubmit="return confirm('このコメントを削除します。よろしいですか？');">
+                        <button type="submit" class="button is-danger is-light is-small">
+                            削除
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+
+
+            </div>
+            <nav class="level is-mobile">
+                <div class="level-left">
+                    <details>
+                        <summary class="level-item button is-small is-white has-text-link">返信する</summary>
+                        <form method="post" class="mt-2">
+                            <input type="hidden" name="parent_id" value="{{ c.comment_id }}">
+                            <div class="field">
+                                <div class="control">
+                                    <textarea name="content" class="textarea is-small" required></textarea>
+                                </div>
+                            </div>
+                            <button type="submit" class="button is-small is-link">送信</button>
+                        </form>
+                    </details>
+                </div>
+            </nav>
+            {% if c.replies %}
+            <div class="comment-nest" style="border-left: 2px solid #dbdbdb; margin-left: 1.5rem; padding-left: 1rem;">
+                {{ render_comments(c.replies) }}
+            </div>
+            {% endif %}
+        </div>
+    </article>
+    {% endfor %}
+    {% endmacro %}
+
+    {{ render_comments(comments) }}
+</div>
+{% endblock %}

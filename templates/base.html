@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{% endblock %} - Students Community</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css">
+    <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+    <style>
+        .comment-nest { border-left: 2px solid #dbdbdb; margin-left: 1.5rem; padding-left: 1rem; margin-top: 1rem; }
+        .sticky-nav { position: sticky; top: 0; z-index: 10; }
+    </style>
+</head>
+<body class="has-background-light" style="min-height: 100vh;">
+    <nav class="navbar is-link sticky-nav" role="navigation" aria-label="main navigation">
+        <div class="container">
+            <div class="navbar-brand">
+                <a class="navbar-item has-text-weight-bold" href="{{ url_for('index') }}">
+                    <span class="icon"><i class="fas fa-graduation-cap"></i></span>&nbsp;学コミュ
+                </a>
+                <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false" data-target="navbarBasic">
+                    <span></span><span></span><span></span>
+                </a>
+            </div>
+
+            <div id="navbarBasic" class="navbar-menu">
+                <div class="navbar-start">
+                    <div class="navbar-item">
+                        <form action="{{ url_for('search') }}" method="get" class="field has-addons">
+                            <div class="control">
+                                <input class="input is-small" type="text" name="q" placeholder="受講者番号で検索">
+                            </div>
+                            <div class="control">
+                                <button type="submit" class="button is-small is-info">検索</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="navbar-end">
+                    <div class="navbar-item">
+                        <span class="tag is-info is-light mr-3">ID: {{ session.student_id }}</span>
+                        <a href="{{ url_for('logout') }}" class="button is-danger is-small is-outlined">ログオフ</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <section class="section">
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const $navbarBurgers = Array.prototype.slice.call(document.querySelectorAll('.navbar-burger'), 0);
+            $navbarBurgers.forEach( el => {
+                el.addEventListener('click', () => {
+                    const target = el.dataset.target;
+                    const $target = document.getElementById(target);
+                    el.classList.toggle('is-active');
+                    $target.classList.toggle('is-active');
+                });
+            });
+        });
+    </script>
+</body>
+</html>

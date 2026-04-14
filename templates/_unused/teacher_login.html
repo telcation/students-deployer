@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>講師ログイン</title>
+  <style>
+    body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;margin:0;background:#f6f7fb}
+    .wrap{max-width:480px;margin:48px auto;padding:24px;background:#fff;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.08)}
+    h1{font-size:20px;margin:0 0 16px}
+    label{display:block;margin:10px 0 6px;font-size:13px;color:#444}
+    input{width:100%;padding:12px;border:1px solid #d7dbe7;border-radius:10px;font-size:16px}
+    button{margin-top:16px;width:100%;padding:12px;border:0;border-radius:10px;background:#1f6feb;color:#fff;font-weight:700;font-size:16px;cursor:pointer}
+    .msg{margin-top:12px;color:#b00020;font-size:13px;white-space:pre-wrap}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>講師ログイン</h1>
+    {% if msg %}<div class="msg">{{ msg }}</div>{% endif %}
+    <form method="post" action="{{ url_prefix }}/teacher/login">
+      <label>PIN</label>
+      <input type="password" name="pin" inputmode="numeric" autocomplete="one-time-code" required>
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit">ログイン</button>
+    </form>
+  </div>
+</body>
+</html>

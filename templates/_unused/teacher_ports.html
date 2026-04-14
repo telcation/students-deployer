@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ポート一覧（講師専用）</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; max-width: 1100px; margin: 20px auto; background: #f5f5f7; }
+    h1 { font-size: 1.6rem; margin: 0 0 8px 0; }
+    .meta { color: #6b7280; margin-bottom: 12px; }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius: 14px; padding: 14px; }
+    input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #d1d5db; margin: 10px 0 14px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+    th, td { border-top: 1px solid #e5e7eb; padding: 10px 8px; text-align: left; vertical-align: top; }
+    th { color:#374151; font-size: 0.85rem; text-transform: uppercase; letter-spacing: .02em; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .badge { display:inline-block; padding:2px 10px; border-radius:999px; background:#e5e7eb; font-size:0.85rem; }
+    a { color:#2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .muted { color:#6b7280; }
+    .row-hide { display:none; }
+    .btn { display:inline-block; padding: 8px 10px; border-radius: 10px; background:#111827; color:#fff; text-decoration:none; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+    <div>
+      <h1>ポート一覧（講師専用）</h1>
+      <div class="meta">生成: {{ generated_at }} / 参照: <span class="mono">/etc/nginx/students.d/*.conf</span></div>
+    </div>
+    <div>
+      <a class="btn" href="{{ url_for('teacher_requests') }}">申請一覧へ</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <input id="q" placeholder="検索（例: 250101 / calendar / 8011 / spring など）">
+
+    <table id="t">
+      <thead>
+        <tr>
+          <th>期</th>
+          <th>受講者ID</th>
+          <th>アプリ</th>
+          <th>種別</th>
+          <th>Port</th>
+          <th>状態</th>
+          <th>URL（外部 / LAN）</th>
+          <th>Location</th>
+          <th class="muted">Conf</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in rows %}
+        <tr class="row">
+          <td class="mono">{{ r.term }}</td>
+          <td class="mono">{{ r.student_id }}</td>
+          <td class="mono">{{ r.app_name }}</td>
+          <td><span class="badge">{{ r.apptype or "?" }}</span></td>
+          <td class="mono">{{ r.port if r.port is not none else "-" }}</td>
+          <td class="mono">{{ r.status or "-" }}</td>
+          <td>
+            <div>
+              <span class="muted">外部:</span>
+              <a class="mono" href="{{ r.public_url_external }}" target="_blank" rel="noopener noreferrer">{{ r.public_url_external }}</a>
+            </div>
+            <div>
+              <span class="muted">LAN:</span>
+              <a class="mono" href="{{ r.public_url_lan }}" target="_blank" rel="noopener noreferrer">{{ r.public_url_lan }}</a>
+            </div>
+          </td>
+          <td class="mono">{{ r.location_path }}</td>
+          <td class="mono muted">{{ r.conf_path }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+<script>
+  const q = document.getElementById("q");
+  const rows = Array.from(document.querySelectorAll("tr.row"));
+  function norm(s){ return (s || "").toString().toLowerCase(); }
+  q.addEventListener("input", () => {
+    const kw = norm(q.value);
+    rows.forEach(tr => {
+      const text = norm(tr.innerText);
+      tr.style.display = (kw === "" || text.includes(kw)) ? "" : "none";
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}検索結果{% endblock %}
+{% block content %}
+<h1 class="title is-4">「{{ query }}」の検索結果</h1>
+
+{% if results %}
+<div class="columns is-multiline">
+    {% for row in results %}
+    <div class="column is-6">
+        <div class="box">
+            <h3 class="title is-5">
+                {% if row.public_url %}
+                <a href="{{ row.public_url }}" target="_blank" rel="noopener noreferrer" class="has-text-link"
+                    style="text-decoration: underline;">
+                    <span class="icon is-small"><i class="fas fa-external-link-alt"></i></span>
+                    {{ row.app_name }}
+                </a>
+                {% else %}
+                {{ row.app_name }}
+                {% endif %}
+            </h3>
+
+            <p class="subtitle is-7">制作: {{ row.student_id }}</p>
+            <p class="is-size-6 mb-4">{{ row.app_desc or '概要なし' }}</p>
+
+            <div class="buttons">
+                <a href="{{ url_for('app_detail', request_id=row.id) }}" class="button is-small is-info is-outlined">
+                    <span class="icon"><i class="far fa-comments"></i></span>
+                    <span>コメント・掲示板を開く</span>
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="notification is-light">該当する公開アプリが見つかりませんでした。</div>
+{% endif %}
+{% endblock %}

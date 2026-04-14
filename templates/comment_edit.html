@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}コメント編集{% endblock %}
+{% block content %}
+<div class="box">
+  <h1 class="title is-4">コメント編集</h1>
+
+  <form method="post">
+    <div class="field">
+      <div class="control">
+        <textarea name="content" class="textarea" rows="6" required>{{ comment.content }}</textarea>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button type="submit" class="button is-link">保存</button>
+      <a class="button is-light" href="{{ url_for('app_detail', request_id=comment.request_id) }}">戻る</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

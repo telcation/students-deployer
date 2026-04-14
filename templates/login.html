@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ログイン - 学コミュ</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css">
+    <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+</head>
+
+<body class="has-background-link-light">
+    <section class="hero is-fullheight">
+        <div class="hero-body">
+            <div class="container">
+                <div class="columns is-centered">
+                    <div class="column is-5-tablet is-4-desktop is-3-widescreen">
+
+                        <form method="post" class="box">
+                            {% if error %}
+                            <div class="notification is-danger is-light">
+                                {{ error }}
+                            </div>
+                            {% endif %}
+
+                            <div class="has-text-centered mb-5">
+                                <span class="icon is-large has-text-link">
+                                    <i class="fas fa-graduation-cap fa-3x"></i>
+                                </span>
+                                <h1 class="title has-text-link mt-2">受講者コミュニティ</h1>
+                            </div>
+
+                            <article class="message is-warning is-small mb-5">
+                                <div class="message-header">
+                                    <p><span class="icon"><i class="fas fa-exclamation-triangle"></i></span> 注意事項</p>
+                                </div>
+                                <div class="message-body">
+                                    <ul class="ml-4" style="list-style-type: disc;">
+                                        <li>ご自身の受講者番号（講師が指示）でログインしてください。</li>
+                                        <li>個人情報に該当するものは記載しないでください。</li>
+                                        <li>講師が不適切と判断したコメントや返信は、予告なく削除される場合があります。</li>
+                                    </ul>
+                                </div>
+                            </article>
+
+                            <div class="field">
+                                <label class="label">受講者番号</label>
+                                <div class="control has-icons-left">
+                                    <input type="text" name="student_id" value="{{ request.form.student_id }}" class="input" placeholder="例: 250101" required
+                                        autofocus>
+                                    <span class="icon is-small is-left">
+                                        <i class="fas fa-user"></i>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="field mt-5">
+                                <button type="submit" class="button is-link is-fullwidth">
+                                    <span>ログイン</span>
+                                </button>
+                            </div>
+                        </form>
+
+                        <p class="has-text-centered is-size-7 has-text-grey">
+                            &copy; 2026 Telcation Student Community
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</body>
+
+</html>

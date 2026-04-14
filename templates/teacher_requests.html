@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>講師 - 申請一覧</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #f8fafc;
+      margin: 18px
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: 0 8px 22px rgba(2, 6, 23, .06)
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 1.2rem
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px
+    }
+
+    th,
+    td {
+      padding: 10px;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+      font-size: .95rem;
+      vertical-align: top
+    }
+
+    th {
+      background: #f1f5f9;
+      color: #334155;
+      position: sticky;
+      top: 0
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: end
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      font-size: .9rem;
+      color: #334155
+    }
+
+    input,
+    select {
+      padding: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      background: #fff;
+      min-width: 160px
+    }
+
+    .btn {
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 12px;
+      font-weight: 800;
+      cursor: pointer
+    }
+
+    .primary {
+      background: #4f46e5;
+      color: #fff
+    }
+
+    .secondary {
+      background: #fff;
+      border: 1px solid #cbd5e1
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #eef2ff;
+      border: 1px solid #c7d2fe;
+      font-size: .85rem
+    }
+
+    .tag2 {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #ecfdf5;
+      border: 1px solid #10b981;
+      font-size: .85rem
+    }
+
+    .tag3 {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #fffbeb;
+      border: 1px solid #f59e0b;
+      font-size: .85rem
+    }
+
+    .flash {
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 12px;
+      background: #ecfdf5;
+      border: 1px solid #10b981;
+      white-space: pre-wrap
+    }
+
+    .flash.err {
+      background: #fef2f2;
+      border-color: #ef4444
+    }
+
+    .help {
+      color: #475569;
+      font-size: .9rem
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between; align-items:center;">
+      <h1>講師 - 申請一覧</h1>
+
+      <!-- ★ ログアウトボタン -->
+      <a class="btn secondary" href="{{ url_for('teacher_logout') }}">
+        ログアウト
+      </a>
+    </div>
+
+    <div class="help">status を絞り込み、申請を処理します。</div>
+
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% if msgs %}
+    {% for cat, msg in msgs %}
+    <div class="flash {{ 'err' if cat=='err' else '' }}">{{msg}}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <form method="get" action="{{url_for('teacher_search')}}" class="row">
+      <div>
+        <label>状態</label>
+        <select name="status">
+          <option value="received" {% if status=='received' %}selected{% endif %}>申請中</option>
+          <option value="done" {% if status=='done' %}selected{% endif %}>完了</option>
+          <option value="stopped" {% if status=='stopped' %}selected{% endif %}>停止</option>
+          <option value="all" {% if status=='all' %}selected{% endif %}>すべて</option>
+        </select>
+      </div>
+      <div>
+        <label>受講者ID</label>
+        <input name="student_id" value="{{student_id}}" placeholder="例: 250101">
+      </div>
+      <div>
+        <label>アプリ名</label>
+        <input name="app_name" value="{{app_name}}" placeholder="例: calendar">
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button class="btn primary" type="submit">検索</button>
+      </div>
+    </form>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>term</th>
+          <th>受講者</th>
+          <th>アプリ</th>
+          <th>種別</th>
+          <th>状態</th>
+          <th>Runtime</th>
+          <th>ポート</th>
+          <th>バージョン</th>
+          <th>最終デプロイ</th>
+          <th>公開URL</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="mono">{{ r.id }}</td>
+          <td class="mono">{{ r.term }}</td>
+          <td class="mono">{{ r.student_id }}</td>
+          <td>{{ r.app_name }}</td>
+          <td><span class="tag">{{ r.kind }}</span></td>
+
+          <td>
+            {% if r.status=='done' %}<span class="tag2">{{ r.status_jp }}</span>
+            {% elif r.status=='public' %}<span class="tag2">{{ r.status_jp }}</span>
+            {% elif r.status=='stopped' %}<span class="tag3">{{ r.status_jp }}</span>
+            {% else %}<span class="tag3">{{ r.status_jp }}</span>
+            {% endif %}
+          </td>
+
+          <td class="mono">{{ r.runtime }}</td>
+          <td class="mono">{{ r.port if r.port else '-' }}</td>
+          <td>{{ r.version }}</td>
+          <td class="mono">{{ r.last_deploy_at if r.last_deploy_at else '-' }}</td>
+
+          <td class="mono">
+            {% if r.status in ['done','public','stopped'] %}
+            {# まず外部をデフォルト #}
+            {% set base = config.PUBLIC_BASE_URL %}
+
+            {# Host がプライベートIPっぽいなら LAN を優先 #}
+            {% if request.host.startswith('192.168.') or request.host.startswith('10.') or request.host.startswith('172.') %}
+            {% set base = (config.LAN_BASE_URL if config.LAN_BASE_URL else 'http://192.168.3.16') %}
+            {% endif %}
+
+            {% if r.kind == 'static' %}
+            <a href="{{ base }}/s/{{ r.term }}/{{ r.student_id }}/{{ r.app_name }}/" target="_blank">
+              {{ base }}/s/{{ r.term }}/{{ r.student_id }}/{{ r.app_name }}/
+            </a>
+            {% elif r.kind == 'flask' %}
+            <a href="{{ base }}/f/{{ r.term }}/{{ r.student_id }}/{{ r.app_name }}/" target="_blank">
+              {{ base }}/f/{{ r.term }}/{{ r.student_id }}/{{ r.app_name }}/
+            </a>
+            {% elif r.kind == 'spring' %}
+            <a href="{{ base }}/b/{{ r.term }}/{{ r.student_id }}/{{ r.app_name }}/" target="_blank">
+              {{ base }}/b/{{ r.term }}/{{ r.student_id }}/{{ r.app_name }}/
+            </a>
+            {% else %}
+            -
+            {% endif %}
+            {% else %}
+            -
+            {% endif %}
+          </td>
+          <td>
+            <!-- 操作ボタン（students_deployer.py の teacher_action に合わせる） -->
+            {% if r.status == 'received' %}
+            <form class="inline" method="post" action="{{ url_for('teacher_action') }}">
+              <input type="hidden" name="student_id" value="{{ r.student_id }}">
+              <input type="hidden" name="app_name" value="{{ r.app_name }}">
+              <input type="hidden" name="apptype" value="{{ r.kind }}">
+              <input type="hidden" name="return_to" value="{{ request.full_path }}">
+              <button class="btn primary" name="action" value="deploy">初回デプロイ</button>
+            </form>
+
+            <!-- 申請中でも緊急削除できるようにする -->
+            <form class="inline" method="post" action="{{ url_for('teacher_action') }}"
+              onsubmit="return confirm('申請中のデータを緊急削除しますか？');">
+              <input type="hidden" name="student_id" value="{{ r.student_id }}">
+              <input type="hidden" name="app_name" value="{{ r.app_name }}">
+              <input type="hidden" name="apptype" value="{{ r.kind }}">
+              <input type="hidden" name="return_to" value="{{ request.full_path }}">
+              <input type="password" name="purge_key" placeholder="Purge Key"
+                style="padding:8px;border:1px solid #cbd5e1;border-radius:10px;width:120px">
+              <button class="btn secondary" name="action" value="purge">緊急削除</button>
+            </form>
+            {% endif %}
+
+            {% if r.status == 'public' %}
+            <form class="inline" method="post" action="{{ url_for('teacher_action') }}">
+              <input type="hidden" name="student_id" value="{{ r.student_id }}">
+              <input type="hidden" name="app_name" value="{{ r.app_name }}">
+              <input type="hidden" name="apptype" value="{{ r.kind }}">
+              <input type="hidden" name="return_to" value="{{ request.full_path }}">
+              <button class="btn warn" name="action" value="stop">停止</button>
+            </form>
+            {% endif %}
+
+            {% if r.status in ['done','public','stopped'] %}
+            <form class="inline" method="post" action="{{ url_for('teacher_action') }}"
+              onsubmit="return confirm('物理削除しますか？');">
+              <input type="hidden" name="student_id" value="{{ r.student_id }}">
+              <input type="hidden" name="app_name" value="{{ r.app_name }}">
+              <input type="hidden" name="apptype" value="{{ r.kind }}">
+              <input type="hidden" name="return_to" value="{{ request.full_path }}">
+              <input type="password" name="purge_key" placeholder="Purge Key"
+                style="padding:8px;border:1px solid #cbd5e1;border-radius:10px;width:120px">
+              <button class="btn danger" name="action" value="purge">削除</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</body>
+
+</html>

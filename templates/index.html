@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}マイページ{% endblock %}
+{% block content %}
+<h1 class="title is-4">ようこそ、{{ session.student_id }} さん</h1>
+
+<div class="columns is-multiline">
+    {% if my_apps %}
+        {% for app in my_apps %}
+        <div class="column is-12">
+            <div class="card">
+                <header class="card-header">
+                    <p class="card-header-title">
+                        <span class="tag is-success mr-2">{{ app.status }}</span> 
+                        {{ app.app_name }}
+                    </p>
+                </header>
+                <div class="card-content">
+                    <div class="content">
+                        <p class="is-size-7 has-text-grey">種類: {{ app.request_kind }}</p>
+                        <p>{{ app.app_desc or '概要なし' }}</p>
+                    </div>
+                </div>
+                <footer class="card-footer">
+                    <a href="{{ url_for('app_detail', request_id=app.id) }}" class="card-footer-item">コメント掲示板を開く</a>
+                </footer>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="column is-12">
+            <div class="notification is-warning is-light">申請済みのアプリが見つかりません。</div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

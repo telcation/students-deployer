@@ -1,0 +1,29 @@
+# 仮想環境
+venv/
+venv_admin/
+
+# データベース（本番データをGitに入れない）
+*.db
+*.sqlite3
+
+# 環境変数（秘密情報）
+.env
+
+# Pythonキャッシュ
+__pycache__/
+*.pyc
+*.pyo
+
+# ログ
+logs/
+*.log
+
+# アップロードファイル
+uploads/
+
+# PyCharm設定（チーム共有しない場合）
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

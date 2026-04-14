@@ -1,0 +1,449 @@
+# teacher_app.py
+# 修正点:
+# - auto_allocate_port を使っていた箇所を auto_port に修正
+# - 初回デプロイ成功時に DB に port を保存（mark_done(port=port)）
+# - teacher_requests.html へ render_template で表示（埋め込みHTMLは使わない）
+# - 状態表示（日本語）: received/ done/ public/ stopped
+# - 一覧に runtime / port / version / last_deploy_at を付与
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+from functools import wraps
+from typing import Any
+
+from flask import Flask, request, render_template, redirect, url_for, session, abort, flash
+
+import re
+import subprocess
+
+import config
+import requests_db
+import ids_ports
+import nginx_utils
+import flask_runtime
+import spring_runtime
+import common_paths
+
+import subprocess
+from pathlib import Path
+import glob
+
+
+def _norm_prefix(p: str, default: str) -> str:
+    p = (p or default).strip()
+    if not p:
+        p = default
+    if not p.startswith("/"):
+        p = "/" + p
+    return p.rstrip("/")
+
+URL_PREFIX = _norm_prefix(getattr(config, "TEACHER_URL_PREFIX", "/teacher"), "/teacher")
+
+
+def _systemd_purge(service_name: str) -> None:
+    """
+    unit本体 + drop-in（override.conf 等）を完全削除。
+    drop-in が残ると ExecStart/port が古いまま残り、502 の原因になる。
+    """
+    unit_path = Path(config.SYSTEMD_DIR) / f"{service_name}.service"
+    dropin_dir = Path(config.SYSTEMD_DIR) / f"{service_name}.service.d"
+
+    subprocess.run(["sudo", "-n", "systemctl", "stop", f"{service_name}.service"], check=False)
+    subprocess.run(["sudo", "-n", "systemctl", "disable", f"{service_name}.service"], check=False)
+    subprocess.run(["sudo", "-n", "systemctl", "reset-failed", f"{service_name}.service"], check=False)
+
+    subprocess.run(["sudo", "-n", "rm", "-f", str(unit_path)], check=False)
+    subprocess.run(["sudo", "-n", "rm", "-rf", str(dropin_dir)], check=False)
+
+    subprocess.run(["sudo", "-n", "systemctl", "daemon-reload"], check=False)
+
+
+def _nginx_reload_strict() -> None:
+    subprocess.run(["sudo", "-n", "nginx", "-t"], check=True)
+    subprocess.run(["sudo", "-n", "systemctl", "reload", "nginx"], check=True)
+
+
+def _nginx_purge_student_conf(term: str, student_id: str, app_name: str) -> None:
+    """
+    /etc/nginx/students.d/<term>_<sid>_<app>.conf を削除（揺れがあっても消す）。
+    """
+    pattern = f"/etc/nginx/students.d/{term}_{student_id}_{app_name}*.conf"
+    for p in glob.glob(pattern):
+        subprocess.run(["sudo", "-n", "rm", "-f", p], check=False)
+
+# --- static nginx location helper (teacher side only) ---
+# students_redeploy は static を /srv/students/{term}/{student}/{app}/public に配置するため、
+# 講師側の初回デプロイも同じパスで枠を作る（BASE_DIR_STATIC には依存しない）。
+def _ensure_static_nginx_location(term: str, student_id: str, app_name: str, flash_func=None) -> bool:
+    location_prefix = f"/s/{term}/{student_id}/{app_name}/"
+    public_dir = common_paths.public_dir(term, student_id, app_name)
+    public_dir.mkdir(parents=True, exist_ok=True)
+
+    conf_dir = config.NGINX_SNIPPET_DIR
+    conf_dir.mkdir(parents=True, exist_ok=True)
+    conf_path = conf_dir / f"{term}_{student_id}_{app_name}.conf"
+
+    conf = f"""# {term} / {student_id} / {app_name} (static)
+location {location_prefix} {{
+    alias {public_dir.as_posix()}/;
+    index index.html;
+    autoindex off;
+}}
+"""
+
+    # atomic write
+    tmp = conf_path.with_suffix(conf_path.suffix + ".tmp")
+    tmp.write_text(conf, encoding="utf-8")
+    tmp.replace(conf_path)
+
+    t = subprocess.run(["sudo", "-n", "nginx", "-t"], capture_output=True, text=True)
+    if t.returncode != 0:
+        # 壊れた conf を残すと危険なので削除して戻す
+        try:
+            conf_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+        if flash_func:
+            flash_func(f"nginx -t に失敗: {(t.stderr or '').strip()}", "error")
+        return False
+
+    r = subprocess.run(["sudo", "-n", "systemctl", "reload", "nginx"], capture_output=True, text=True)
+    if r.returncode != 0:
+        if flash_func:
+            flash_func(f"nginx reload に失敗: {(r.stderr or '').strip()}", "error")
+        return False
+
+    if flash_func:
+        flash_func(f"static 公開枠を作成しました: {location_prefix}", "ok")
+    return True
+
+app = Flask(__name__)
+app.secret_key = config.SECRET_KEY
+
+REQUESTS_DB_PATH = config.REQUESTS_DB_PATH
+
+requests_db.init_db(REQUESTS_DB_PATH)
+
+
+def _status_jp(status: str) -> str:
+    return {
+        "received": "申請中",
+        "done": "完了",
+        "public": "公開中",
+        "stopped": "停止",
+    }.get(status, status)
+
+
+def _term_of(student_id: str) -> str:
+    """term は維持するが、YYMM(=月1..12)に拘らない運用を許容する。
+    ids_ports 側が例外を投げても 500 にしない。"""
+    try:
+        return ids_ports.student_id_to_term(student_id)
+    except Exception:
+        # fallback: 先頭4桁をそのまま term にする（例: 269900 -> 2026-99）
+        if re.fullmatch(r"\d{6}", student_id):
+            yy = student_id[:2]
+            mm = student_id[2:4]
+            return f"20{yy}-{mm}"
+        return "unknown"
+
+
+
+def teacher_login_required(f):
+    @wraps(f)
+    def wrapper(*a, **kw):
+        if session.get("teacher_id"):
+            return f(*a, **kw)
+        nxt = request.path
+        return redirect(url_for("teacher_login_get", next=nxt))
+    return wrapper
+
+
+
+@app.get(f"{URL_PREFIX}/login")
+def teacher_login_get():
+    nxt = request.args.get("next", f"{URL_PREFIX}/search")
+    return render_template("teacher_login.html", next=nxt)
+
+
+@app.post(f"{URL_PREFIX}/login")
+def teacher_login_post():
+    teacher_id = (request.form.get("teacher_id") or "").strip()
+    password = (request.form.get("password") or "")
+    nxt = request.form.get("next") or f"{URL_PREFIX}/search"
+
+    # まだ講師が1人も登録されていない場合は、ログインできないので明示
+    if requests_db.teachers_count(REQUESTS_DB_PATH) == 0:
+        msg = "講師アカウントが未登録です。requests.db の teachers テーブルに teacher_id/password を登録してください。"
+        return render_template("teacher_login.html", next=nxt, msg=msg)
+
+    ok = requests_db.verify_teacher(REQUESTS_DB_PATH, teacher_id=teacher_id, password=password)
+    if ok:
+        session["teacher_id"] = teacher_id
+        return redirect(nxt)
+
+    return render_template("teacher_login.html", next=nxt, msg="講師番号またはパスワードが違います")
+
+
+@app.get(f"{URL_PREFIX}/logout")
+def teacher_logout():
+    session.clear()
+    return redirect(f"{URL_PREFIX}/login")
+
+
+def _get_service_state(service_name: str) -> str:
+    r = subprocess.run(["sudo", "-n", "systemctl", "is-active", service_name],
+                       capture_output=True, text=True)
+    return (r.stdout or "").strip()
+
+
+def _runtime_state(kind: str, term: str, student_id: str, app_name: str) -> str:
+    kind = (kind or "").lower()
+    if kind not in ("flask", "spring"):
+        return "-"
+    service_name = common_paths.service_name(kind, term, student_id, app_name)
+    out = _get_service_state(service_name)
+    if out == "active":
+        return "active"
+    if out in ("inactive", "failed", "deactivating", "activating"):
+        return "stopped"
+    return out or "unknown"
+
+
+def _service_and_appdir(term: str, student_id: str, app_name: str, kind: str) -> tuple[str, str]:
+    if kind == "flask":
+        service_name = common_paths.service_name("flask", term, student_id, app_name)
+        app_dir = f"{config.BASE_DIR_FLASK}/{term}/{student_id}/{app_name}"
+        return service_name, app_dir
+    if kind == "spring":
+        service_name = common_paths.service_name("spring", term, student_id, app_name)
+        app_dir = f"{config.BASE_DIR_SPRING}/{term}/{student_id}/{app_name}"
+        return service_name, app_dir
+    raise ValueError("unsupported kind")
+
+
+def _load_request_by_student_app(student_id: str, app_name: str):
+    rows = requests_db.search(REQUESTS_DB_PATH, student_id=student_id, app_name=app_name, status="all")
+    if not rows:
+        return None
+    return rows[0]
+
+
+@app.get(f"{URL_PREFIX}/search")
+@teacher_login_required
+def teacher_search():
+    status = (request.args.get("status") or "all").strip() or "all"
+    student_id = (request.args.get("student_id") or "").strip()
+    app_name   = (request.args.get("app_name") or "").strip()
+
+    rows = requests_db.search(
+        REQUESTS_DB_PATH,
+        status=status,
+        student_id=student_id,
+        app_name=app_name,
+    )
+    # rows = rows[:300]
+
+    view_rows = []
+    for r in rows:
+        term = _term_of(r.student_id)
+        kind = (getattr(r, "request_kind", None) or "static").lower()
+
+        runtime = _runtime_state(kind, term, r.student_id, r.app_name)
+
+        version = "-"
+        if kind == "flask":
+            pv = getattr(r, "python_version", None) or "auto"
+            version = f"Python {pv}"
+        elif kind == "spring":
+            jr = getattr(r, "java_release", None) or "auto"
+            version = f"Java {jr}"
+
+        last_deploy_at = getattr(r, "last_upload_at", None) or ""
+
+        view_rows.append(
+            dict(
+                id=r.id,
+                term=term,
+                student_id=r.student_id,
+                app_name=r.app_name,
+                kind=kind,
+                status=r.status,
+                status_jp=_status_jp(r.status),
+                runtime=runtime,
+                port=getattr(r, "port", None),
+                version=version,
+                last_deploy_at=last_deploy_at,
+                created_at=r.created_at,
+            )
+        )
+
+    return render_template(
+        "teacher_requests.html",
+        rows=view_rows,
+        status=status,
+        student_id=student_id,
+        app_name=app_name,
+        config=config,
+    )
+
+
+@app.post(f"{URL_PREFIX}/action")
+@teacher_login_required
+def teacher_action():
+    action = (request.form.get("action") or "").strip()
+    student_id = (request.form.get("student_id") or "").strip()
+    app_name = (request.form.get("app_name") or "").strip()
+    apptype = (request.form.get("apptype") or "").strip().lower()
+    return_to = request.form.get("return_to") or f"{URL_PREFIX}/search"
+
+    row = _load_request_by_student_app(student_id, app_name)
+    if row is None:
+        flash("対象の申請が見つかりません", "error")
+        return redirect(return_to)
+
+    term = _term_of(student_id)
+
+    if action == "deploy":
+        # 初回デプロイは received のときだけ
+        if row.status != "received":
+            flash("初回デプロイは申請中（received）のみ可能です", "error")
+            return redirect(return_to)
+
+        # 種別は DB の request_kind を正とする（フォーム値の混入を防ぐ）
+        apptype = (getattr(row, "request_kind", None) or apptype or "static").strip().lower()
+
+        try:
+            port = None
+
+            if apptype in ("flask", "spring"):
+                # ポート確保（欠番運用）
+                port = ids_ports.auto_port(apptype, student_id)
+
+            if apptype == "flask":
+                flask_runtime.setup_flask_runtime(
+                    term=term,
+                    student_id=student_id,
+                    app_name=app_name,
+                    port=port,
+                    python_version=(getattr(row, "python_version", None) or config.DEFAULT_PYTHON_VERSION),
+                )
+
+                nginx_utils.write_student_location("flask", term, student_id, app_name, port=port, flash_func=flash)
+                if not nginx_utils.reload_nginx_with_check(flash):
+                    raise RuntimeError("nginx reload failed")
+
+            elif apptype == "spring":
+                spring_runtime.first_deploy_spring(
+                    term=term,
+                    student_id=student_id,
+                    app_name=app_name,
+                    port=port,
+                    jar_name="app.jar",
+                )
+
+                nginx_utils.write_student_location("spring", term, student_id, app_name, port=port, flash_func=flash)
+                if not nginx_utils.reload_nginx_with_check(flash):
+                    raise RuntimeError("nginx reload failed")
+
+            elif apptype == "static":
+                # static は初回枠作成のみ（ポート不要 / systemd不要）
+                if not _ensure_static_nginx_location(term, student_id, app_name, flash_func=flash):
+                    raise RuntimeError("static nginx location create failed")
+
+            else:
+                flash(f"未知の種別: {apptype}", "error")
+                return redirect(return_to)
+
+            # done: 公開枠が確保できた（ファイル未アップロードでもOK）
+            requests_db.mark_done(REQUESTS_DB_PATH, row.id, port=port)
+            flash("初回デプロイが完了しました", "ok")
+
+        except Exception as e:
+            flash(f"初回デプロイに失敗: {e}", "error")
+
+        return redirect(return_to)
+
+    if action == "stop":
+        # 停止は public のみ
+        apptype = (getattr(row, "request_kind", None) or apptype or "static").strip().lower()
+        if row.status != "public":
+            flash("停止は公開中（public）のみ可能です", "error")
+            return redirect(return_to)
+    
+        try:
+            if apptype in ("flask", "spring"):
+                service_name, _app_dir = _service_and_appdir(term, student_id, app_name, apptype)
+                subprocess.run(["sudo", "-n", "systemctl", "stop", service_name], check=False)
+            requests_db.mark_stopped(REQUESTS_DB_PATH, row.id)
+            flash("停止しました", "ok")
+        except Exception as e:
+            flash(f"停止に失敗: {e}", "error")
+    
+        return redirect(return_to)
+    
+    if action == "purge":
+        # 物理削除（講師のみ）
+        # ===== purge（統一版・完成ブロック） =====
+        apptype = (getattr(row, "request_kind", None) or apptype or "static").strip().lower()
+        purge_key = (request.form.get("purge_key") or "").strip()
+        if purge_key != getattr(config, "PURGE_KEY", ""):
+            flash("Purge Key が違います", "error")
+            return redirect(return_to)
+
+        try:
+            # 0) app_dir を種別で確定（staticでも落ちない）
+            # app_dir を common_paths に頼らず、config から確定する
+            if apptype == "spring":
+                service_name = common_paths.service_name("spring", term, student_id, app_name)
+                app_dir = f"{config.BASE_DIR_SPRING}/{term}/{student_id}/{app_name}"
+                _systemd_purge(service_name)
+
+            elif apptype == "flask":
+                service_name = common_paths.service_name("flask", term, student_id, app_name)
+                app_dir = f"{config.BASE_DIR_FLASK}/{term}/{student_id}/{app_name}"
+                _systemd_purge(service_name)
+
+            elif apptype == "static":
+                service_name = ""
+                app_dir = f"{config.BASE_DIR_STATIC}/{term}/{student_id}/{app_name}"
+
+            else:
+                raise ValueError(f"unsupported apptype: {apptype}")
+
+            # 1) nginx conf は全種別で消す
+            _nginx_purge_student_conf(term, student_id, app_name)
+
+            # 2) 実体ディレクトリ削除（全種別）
+            subprocess.run(["sudo", "-n", "rm", "-rf", app_dir], check=False)
+
+            # 3) nginx reload（テストしてから）
+            _nginx_reload_strict()
+
+            # 4) DB（requests）から削除/更新はあなたの既存仕様に合わせる
+            # 例：完全削除
+            requests_db.delete_request(REQUESTS_DB_PATH, row.id)
+
+            flash("削除しました（purge 完了）", "ok")
+
+        except Exception as e:
+            flash(f"削除に失敗: {e}", "error")
+
+        return redirect(return_to)
+        # ===== purge（統一版・完成ブロック）ここまで =====
+    
+    flash("不明な操作です", "error")
+    return redirect(return_to)
+    
+    
+@app.get("/")
+def index():
+    return redirect(f"{URL_PREFIX}/search")
+
+
+if __name__ == "__main__":
+    host = getattr(config, "TEACHER_HOST", "127.0.0.1")
+    port = int(getattr(config, "PORT", 5000))
+    app.run(host=host, port=port, debug=False)

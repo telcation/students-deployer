@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>管理（講師）</title>
+  <style>
+    body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; }
+    h1 { font-size: 1.4rem; margin: 0 0 10px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin: 10px 0 16px; }
+    label { font-weight:700; display:block; margin-bottom:4px; }
+    input, select { padding:8px; border:1px solid #ddd; border-radius:8px; }
+    button { border:0; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:700; background:#111827; color:#fff; }
+    .btn-del { background:#ef4444; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; vertical-align: top; }
+    th { background: #f3f4f6; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .pill { display:inline-block; padding:0.45rem 0.75rem; border-radius:9999px; text-decoration:none; font-weight:700; color:#fff; background:#2563eb; }
+    .pill2 { background:#111827; }
+    .pill3 { background:#6b7280; }
+    .note { background:#fff7ed; border:1px solid #fed7aa; padding:10px 12px; border-radius:10px; margin: 0 0 14px; }
+  </style>
+</head>
+<body>
+  <h1>管理（講師）</h1>
+
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin: 0 0 12px;">
+    <a class="pill" href="{{ url_for('teacher_requests') }}">申請一覧</a>
+    <a class="pill pill2" href="{{ url_for('teacher_ports') }}">ポート一覧</a>
+    <a class="pill pill3" href="{{ url_for('teacher_admin') }}">管理</a>
+  </div>
+
+  <div class="note">
+    <b>注意:</b> ここでの「削除」は申請DBの行を消します（受講者側の「同一アプリ名で再申請不可」を解除する用途）。
+  </div>
+
+  <form method="get">
+    <div class="row">
+      <div>
+        <label>状態</label>
+        <select name="status">
+          <option value="received" {% if q.status=="received" %}selected{% endif %}>受付のみ</option>
+          <option value="done" {% if q.status=="done" %}selected{% endif %}>完了のみ</option>
+          <option value="ALL" {% if q.status=="ALL" %}selected{% endif %}>全て</option>
+        </select>
+      </div>
+
+      <div>
+        <label>受講者番号（部分一致）</label>
+        <input name="student_id" value="{{ q.student_id }}" placeholder="例: 250101 / 0101">
+      </div>
+
+      <div>
+        <label>アプリ名（部分一致）</label>
+        <input name="app_name" value="{{ q.app_name }}" placeholder="例: calendar">
+      </div>
+
+      <div>
+        <label>並び順</label>
+        <select name="sort">
+          <option value="new" {% if q.sort=="new" %}selected{% endif %}>新しい順</option>
+          <option value="old" {% if q.sort=="old" %}selected{% endif %}>古い順</option>
+        </select>
+      </div>
+
+      <div>
+        <button type="submit">検索</button>
+      </div>
+    </div>
+  </form>
+
+  <table>
+    <tr>
+      <th>ID</th>
+      <th>申請日時</th>
+      <th>受講者番号</th>
+      <th>アプリ名</th>
+      <th>種別</th>
+      <th>状態</th>
+      <th>操作</th>
+    </tr>
+
+    {% for r in rows %}
+    <tr>
+      <td class="mono">{{ r.id }}</td>
+      <td class="mono">{{ r.created_at }}</td>
+      <td class="mono">{{ r.student_id }}</td>
+      <td class="mono">{{ r.app_name }}</td>
+      <td class="mono">{{ r.request_kind }}</td>
+      <td>{{ "受付" if r.status=="received" else ("完了" if r.status=="done" else r.status) }}</td>
+      <td>
+        <form method="post" action="{{ url_for('teacher_requests_delete') }}" style="margin:0;" onsubmit="return confirm('申請を削除します。よろしいですか？');">
+          <input type="hidden" name="request_id" value="{{ r.id }}">
+          <button type="submit" class="btn-del">削除</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
