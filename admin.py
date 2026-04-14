@@ -52,6 +52,7 @@ LIST_HTML = """
 <div class="row">
   <a class="btn" href="{{ url_for('new_row') }}">新規登録</a>
   <a class="btn" href="{{ url_for('teachers_index') }}">Teachers CRUD</a>
+  <a class="btn" href="{{ url_for('students_index') }}">受講者登録</a>
   <a class="btn" href="{{ url_for('line_settings_get') }}">LINE通知設定</a>
   <span class="muted">DB: {{ db_path }}</span>
 </div>
@@ -495,6 +496,115 @@ def delete_row(request_id: int):
     requests_db.init_db(DB_PATH)
     requests_db.delete_request(DB_PATH, request_id)
     return redirect(url_for("index"))
+
+# --- 受講者登録（コミュニティログイン用） ---
+
+STUDENTS_LIST_HTML = """\
+<!doctype html>
+<meta charset="utf-8">
+<title>受講者登録</title>
+<style>
+  body{font-family:system-ui, sans-serif; margin:16px;}
+  table{border-collapse:collapse; width:100%; max-width:480px;}
+  th,td{border:1px solid #ccc; padding:6px; font-size:14px;}
+  th{background:#f5f5f5;}
+  .row{display:flex; gap:12px; flex-wrap:wrap; margin:12px 0;}
+  .btn{display:inline-block; padding:6px 10px; border:1px solid #333; text-decoration:none; border-radius:6px;}
+  .danger{border-color:#b00; color:#b00;}
+  .msg{color:#060; margin:8px 0;}
+  .err{color:#b00; margin:8px 0;}
+</style>
+<h1>受講者登録</h1>
+<p style="color:#666; font-size:13px;">ここで登録した受講者IDはコミュニティアプリにログインできます。</p>
+<div class="row">
+  <a class="btn" href="{{ url_for('index') }}">← トップへ戻る</a>
+</div>
+{% if msg %}<div class="msg">{{ msg }}</div>{% endif %}
+{% if err %}<div class="err">{{ err }}</div>{% endif %}
+<form method="post" action="{{ url_for('students_add') }}" style="margin:16px 0;">
+  <label>受講者ID（6桁数字）</label><br>
+  <input type="text" name="student_id" maxlength="6" pattern="\\d{6}" placeholder="例: 250901" required
+         style="width:200px; padding:6px; font-size:16px; margin:6px 0;">
+  <button type="submit" class="btn" style="margin-left:8px;">登録</button>
+</form>
+<h2 style="font-size:16px;">登録済み受講者ID一覧</h2>
+<table>
+  <thead><tr><th>受講者ID</th><th>操作</th></tr></thead>
+  <tbody>
+    {% for sid in student_ids %}
+    <tr>
+      <td>{{ sid }}</td>
+      <td>
+        <form method="post" action="{{ url_for('students_delete') }}"
+              onsubmit="return confirm('{{ sid }} を削除しますか？');" style="display:inline;">
+          <input type="hidden" name="student_id" value="{{ sid }}">
+          <button class="btn danger" type="submit">削除</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    {% if not student_ids %}
+    <tr><td colspan="2" style="color:#999; text-align:center;">登録なし</td></tr>
+    {% endif %}
+  </tbody>
+</table>
+"""
+
+
+def _list_registered_students(db_path):
+    import sqlite3
+    with sqlite3.connect(db_path) as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT student_id FROM requests WHERE app_name = '_registered' ORDER BY student_id"
+        ).fetchall()
+    return [r[0] for r in rows]
+
+
+@app.get("/students")
+def students_index():
+    requests_db.init_db(DB_PATH)
+    student_ids = _list_registered_students(DB_PATH)
+    return render_template_string(STUDENTS_LIST_HTML, student_ids=student_ids, msg="", err="")
+
+
+@app.post("/students/add")
+def students_add():
+    requests_db.init_db(DB_PATH)
+    import re
+    student_id = (request.form.get("student_id") or "").strip()
+    if not re.fullmatch(r"\d{6}", student_id):
+        student_ids = _list_registered_students(DB_PATH)
+        return render_template_string(STUDENTS_LIST_HTML, student_ids=student_ids,
+                                      msg="", err="受講者IDは6桁の数字で入力してください。")
+    try:
+        requests_db.add_request(
+            DB_PATH,
+            student_id=student_id,
+            app_name="_registered",
+            request_kind="static",
+            status="registered",
+        )
+        msg = f"{student_id} を登録しました。"
+        err = ""
+    except ValueError:
+        msg = ""
+        err = f"{student_id} は既に登録済みです。"
+    student_ids = _list_registered_students(DB_PATH)
+    return render_template_string(STUDENTS_LIST_HTML, student_ids=student_ids, msg=msg, err=err)
+
+
+@app.post("/students/delete")
+def students_delete():
+    requests_db.init_db(DB_PATH)
+    import sqlite3
+    student_id = (request.form.get("student_id") or "").strip()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            "DELETE FROM requests WHERE student_id = ? AND app_name = '_registered'",
+            (student_id,)
+        )
+    return redirect(url_for("students_index"))
+
 
 if __name__ == "__main__":
     # 公開しない前提なら 127.0.0.1 でOK（同一PC内だけ）
