@@ -39,7 +39,10 @@ def generate_public_url(row):
     Telcationのルーティング規則に従ってURLを動的に生成する
     規則: /{kind_prefix}/{term}/{student_id}/{app_name}/
     """
-    term = ids_ports.student_id_to_term(row.student_id)
+    try:
+        term = ids_ports.student_id_to_term(row.student_id)
+    except Exception:
+        return ""
 
     # デフォルトは外部
     base = config.PUBLIC_BASE_URL
@@ -69,6 +72,7 @@ class PrefixMiddleware(object):
     def __init__(self, app, prefix=''):
         self.app = app
         self.prefix = prefix
+
     def __call__(self, environ, start_response):
         if environ['PATH_INFO'].startswith(self.prefix):
             environ['PATH_INFO'] = environ['PATH_INFO'][len(self.prefix):]
@@ -77,9 +81,12 @@ class PrefixMiddleware(object):
         else:
             return self.app(environ, start_response)
 
+
 # Nginxのlocation設定に合わせて /community を指定
 COMMUNITY_PREFIX = (os.environ.get("COMMUNITY_URL_PREFIX", "/community").rstrip("/")) or "/community"
 app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix=COMMUNITY_PREFIX)
+
+
 # ---------------------------------------
 
 def get_db():
@@ -90,21 +97,25 @@ def get_db():
         db.execute("PRAGMA foreign_keys = ON;")
     return db
 
+
 @app.teardown_appcontext
 def close_connection(exception):
     db = getattr(g, '_database', None)
     if db is not None:
         db.close()
 
+
 def _table_columns(db, table: str) -> set[str]:
     rows = db.execute(f"PRAGMA table_info({table})").fetchall()
     return {r[1] for r in rows}
+
 
 def _add_column_if_missing(db, table: str, col: str, ddl_type: str) -> None:
     cols = _table_columns(db, table)
     if col in cols:
         return
     db.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl_type}")
+
 
 def init_community_db():
     with app.app_context():
@@ -134,9 +145,12 @@ def get_comment_tree(request_id):
     comment_map = {c['comment_id']: {**c, 'replies': []} for c in comments}
     tree = []
     for c in comment_map.values():
-        if c['parent_id'] is None: tree.append(c)
-        elif c['parent_id'] in comment_map: comment_map[c['parent_id']]['replies'].append(c)
+        if c['parent_id'] is None:
+            tree.append(c)
+        elif c['parent_id'] in comment_map:
+            comment_map[c['parent_id']]['replies'].append(c)
     return tree
+
 
 @app.route("/", methods=["GET", "POST"])
 def login():
@@ -152,36 +166,40 @@ def login():
 
     return render_template("login.html", error=error)
 
+
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
 
+
 @app.route('/index')
 def index():
     if 'student_id' not in session: return redirect(url_for('login'))
     my_apps = requests_db.list_by_student(DATABASE, session['student_id'])
-    
+
     # 自分のアプリ一覧にもURLを付与
     for app_row in my_apps:
         app_row.public_url = generate_public_url(app_row)
-        
+
     return render_template('index.html', my_apps=my_apps)
+
 
 @app.route('/search')
 def search():
     q = request.args.get('q', '')
     # requests_db.py の search を利用
     results = requests_db.search(DATABASE, status='public', student_id=q)
-    
+
     # 取得した各行に対して URL を付与
     processed_results = []
     for row in results:
         # RequestRowオブジェクトに動的URLをセット
         row.public_url = generate_public_url(row)
         processed_results.append(row)
-        
+
     return render_template('search.html', results=processed_results, query=q)
+
 
 @app.route('/app/<int:request_id>', methods=['GET', 'POST'])
 def app_detail(request_id):
@@ -197,6 +215,7 @@ def app_detail(request_id):
     comments = get_comment_tree(request_id)
     return render_template('detail.html', app=app_info, comments=comments)
 
+
 @app.route('/app/<int:request_id>/overview', methods=['POST'])
 def update_overview(request_id):
     if 'student_id' not in session:
@@ -211,6 +230,7 @@ def update_overview(request_id):
     )
     # 失敗時は他人のアプリ等。とりあえず詳細へ戻す（必要なら 403 にしてもOK）
     return redirect(url_for('app_detail', request_id=request_id))
+
 
 @app.route('/comment/<int:comment_id>/edit', methods=['GET', 'POST'])
 def edit_comment(comment_id):
@@ -240,6 +260,7 @@ def edit_comment(comment_id):
 
     # GET は編集画面（テンプレを用意）
     return render_template('comment_edit.html', comment=dict(c))
+
 
 @app.route('/comment/<int:comment_id>/delete', methods=['POST'])
 def delete_comment(comment_id):
@@ -276,6 +297,7 @@ def delete_comment(comment_id):
 
     db.commit()
     return redirect(url_for('app_detail', request_id=req_id))
+
 
 if __name__ == '__main__':
     init_community_db()
