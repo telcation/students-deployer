@@ -1,0 +1,19 @@
+# /etc/systemd/system/community_app.service
+[Unit]
+Description=Community App (Production)
+After=network.target
+
+[Service]
+User=appuser
+WorkingDirectory=/home/appuser/students_deployer
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/home/appuser/students_deployer
+Environment=PORT=5002
+Environment=COMMUNITY_URL_PREFIX=/community
+Environment=SECRET_KEY=400b0b33c34091aacc03262ea960a5eb5d2f280a4b3dbca471e9222f90c02dac
+ExecStart=/home/appuser/students_deployer/venv/bin/python /home/appuser/students_deployer/community_app.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

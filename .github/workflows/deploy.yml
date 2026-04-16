@@ -20,7 +20,7 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      - name: ファイルを転送
+      - name: アプリファイルを転送
         run: |
           rsync -avz --delete \
             --exclude '.git' \
@@ -33,7 +33,33 @@ jobs:
             --exclude '*.pyc' \
             --exclude 'logs/' \
             --exclude 'uploads/' \
+            --exclude 'systemd/' \
             ./ appuser@${{ secrets.SSH_HOST }}:/home/appuser/students_deployer/
+
+      - name: systemd ユニットファイルを転送・反映
+        run: |
+          rsync -avz \
+            systemd/ \
+            appuser@${{ secrets.SSH_HOST }}:/tmp/systemd_units/
+          ssh appuser@${{ secrets.SSH_HOST }} '
+            sudo cp /tmp/systemd_units/*.service /etc/systemd/system/
+            sudo systemctl daemon-reload
+          '
+
+      - name: DBマイグレーション（students テーブル作成・既存受講者を移行）
+        run: |
+          ssh appuser@${{ secrets.SSH_HOST }} '
+            sqlite3 /home/appuser/students_deployer/requests.db "
+              CREATE TABLE IF NOT EXISTS students (
+                student_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL
+              );
+              INSERT OR IGNORE INTO students (student_id, created_at)
+                SELECT DISTINCT student_id, MIN(created_at)
+                FROM requests
+                GROUP BY student_id;
+            "
+          '
 
       - name: サービス再起動
         run: |

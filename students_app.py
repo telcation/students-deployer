@@ -756,6 +756,10 @@ def students_login_post():
     if not re.fullmatch(r"\d{6}", student_id):
         return render_template("students_login.html", next=nxt, require_pin=REQUIRE_PIN, msg="受講者番号は6桁数字で入力してください。")
 
+    # 受講者登録テーブルで存在確認
+    if not requests_db.student_exists(REQUESTS_DB_PATH, student_id):
+        return render_template("students_login.html", next=nxt, require_pin=REQUIRE_PIN, msg="この受講者番号は登録されていません。")
+
     if REQUIRE_PIN:
         pin = (request.form.get("pin") or "").strip()
         if pin != STUDENT_PIN:

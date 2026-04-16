@@ -51,6 +51,7 @@ LIST_HTML = """
 
 <div class="row">
   <a class="btn" href="{{ url_for('new_row') }}">新規登録</a>
+  <a class="btn" href="{{ url_for('students_index') }}">受講者登録</a>
   <a class="btn" href="{{ url_for('teachers_index') }}">Teachers CRUD</a>
   <a class="btn" href="{{ url_for('students_index') }}">受講者登録</a>
   <a class="btn" href="{{ url_for('line_settings_get') }}">LINE通知設定</a>
@@ -357,6 +358,125 @@ def new_row_post():
         abort(500, "登録後の更新に失敗しました。")
 
     return redirect(url_for("index"))
+
+STUDENTS_LIST_HTML = """
+<!doctype html>
+<meta charset="utf-8">
+<title>受講者登録</title>
+<style>
+  body{font-family:system-ui, sans-serif; margin:16px;}
+  table{border-collapse:collapse; width:100%;}
+  th,td{border:1px solid #ccc; padding:6px; vertical-align:top; font-size:14px;}
+  th{background:#f5f5f5;}
+  .row{display:flex; gap:12px; flex-wrap:wrap; margin:12px 0;}
+  .btn{display:inline-block; padding:6px 10px; border:1px solid #333; text-decoration:none; border-radius:6px;}
+  .danger{border-color:#b00; color:#b00;}
+  input[type=text]{width:360px; max-width:100%;}
+  .muted{color:#666;}
+</style>
+
+<h1>受講者登録</h1>
+
+<div class="row">
+  <a class="btn" href="{{ url_for('students_new') }}">受講者追加</a>
+  <a class="btn" href="{{ url_for('index') }}">Requests CRUD</a>
+  <span class="muted">DB: {{ db_path }}</span>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>student_id</th>
+      <th>created_at</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in students %}
+    <tr>
+      <td>{{ s.student_id }}</td>
+      <td>{{ s.created_at }}</td>
+      <td>
+        <form style="display:inline" method="post" action="{{ url_for('students_delete', student_id=s.student_id) }}"
+              onsubmit="return confirm('student_id={{ s.student_id }} を削除しますか？');">
+          <button class="btn danger" type="submit">削除</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+"""
+
+STUDENTS_FORM_HTML = """
+<!doctype html>
+<meta charset="utf-8">
+<title>受講者追加</title>
+<style>
+  body{font-family:system-ui, sans-serif; margin:16px;}
+  label{display:block; margin-top:10px; font-weight:600;}
+  input[type=text]{width:520px; max-width:100%; padding:6px;}
+  .row{display:flex; gap:10px; margin-top:14px; align-items:center;}
+  .btn{padding:8px 12px; border:1px solid #333; border-radius:8px; background:#fff; cursor:pointer; text-decoration:none; color:#000;}
+  .muted{color:#666;}
+  .error{color:#b00; margin-top:8px;}
+</style>
+
+<h1>受講者追加</h1>
+<p class="muted">受講者番号（6桁数字）を登録します。アプリ申請は受講者自身が行います。</p>
+
+{% if error %}
+  <p class="error">{{ error }}</p>
+{% endif %}
+
+<form method="post">
+  <label>student_id（6桁数字）</label>
+  <input type="text" name="student_id" value="{{ student_id }}" required pattern="\\d{6}" maxlength="6">
+
+  <div class="row">
+    <button class="btn" type="submit">登録</button>
+    <a class="btn" href="{{ url_for('students_index') }}">戻る</a>
+  </div>
+</form>
+"""
+
+
+# --- Students CRUD ---
+
+import re as _re
+
+@app.get("/students")
+def students_index():
+    requests_db.init_db(DB_PATH)
+    students = requests_db.list_students(DB_PATH)
+    class S:
+        def __init__(self, d): self.__dict__.update(d)
+    students = [S(s) for s in students]
+    return render_template_string(STUDENTS_LIST_HTML, students=students, db_path=DB_PATH)
+
+@app.get("/students/new")
+def students_new():
+    return render_template_string(STUDENTS_FORM_HTML, student_id="", error=None)
+
+@app.post("/students/new")
+def students_new_post():
+    requests_db.init_db(DB_PATH)
+    student_id = (request.form.get("student_id") or "").strip()
+    if not _re.fullmatch(r"\d{6}", student_id):
+        return render_template_string(
+            STUDENTS_FORM_HTML,
+            student_id=student_id,
+            error="受講者番号は6桁の数字で入力してください。",
+        )
+    requests_db.register_student(DB_PATH, student_id=student_id)
+    return redirect(url_for("students_index"))
+
+@app.post("/students/delete/<student_id>")
+def students_delete(student_id: str):
+    requests_db.init_db(DB_PATH)
+    requests_db.unregister_student(DB_PATH, student_id=student_id)
+    return redirect(url_for("students_index"))
+
 
 # --- Teachers CRUD ---
 

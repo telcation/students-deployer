@@ -14,12 +14,7 @@ LAN_BASE_URL = str(getattr(config, "LAN_BASE_URL", "")).rstrip("/")
 
 # Student ID validation helpers
 def student_id_exists(student_id: str) -> bool:
-    with sqlite3.connect(DATABASE) as conn:
-        row = conn.execute(
-            "SELECT 1 FROM requests WHERE student_id = ? LIMIT 1",
-            (student_id,)
-        ).fetchone()
-    return row is not None
+    return requests_db.student_exists(DATABASE, student_id)
 
 
 def validate_student_id(student_id: str):

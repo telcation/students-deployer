@@ -1,0 +1,22 @@
+# /etc/systemd/system/students.service
+[Unit]
+Description=Students App (Production)
+After=network.target
+
+[Service]
+User=appuser
+WorkingDirectory=/home/appuser/students_deployer
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/home/appuser/students_deployer
+Environment=PORT=5001
+Environment=SECRET_KEY=400b0b33c34091aacc03262ea960a5eb5d2f280a4b3dbca471e9222f90c02dac
+Environment=LINE_NOTIFY_ENABLED=1
+Environment=LINE_CHANNEL_ACCESS_TOKEN=Q0GpnNSyi2ZHHI3oNQtI6GI/Mcs7l9I41sWERwLslRphSSzs/Ju/57+d7Av6qglSly2vM+Qn9Vr2RABHJ/YS9dufyIsTHux0qjAVch8K0GL23UfAoNqAQwWHOGTcEJmP6DW0RP4sZVZH+DCC7++gHgdB04t89/1O/w1cDnyilFU=
+Environment=LINE_NOTIFY_TO=C35253b5fe86dbdefb0cad47aa9c574f5
+Environment=LINE_NOTIFY_PREFIX=【公開完了通知】
+ExecStart=/home/appuser/students_deployer/venv/bin/python /home/appuser/students_deployer/students_app.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

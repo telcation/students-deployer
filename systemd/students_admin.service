@@ -1,0 +1,18 @@
+# /etc/systemd/system/students_admin.service
+[Unit]
+Description=Students Admin App (local-only CRUD)
+After=network.target
+
+[Service]
+User=appuser
+WorkingDirectory=/home/appuser/students_deployer
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/home/appuser/students_deployer
+Environment=PORT=5003
+Environment=SECRET_KEY=400b0b33c34091aacc03262ea960a5eb5d2f280a4b3dbca471e9222f90c02dac
+ExecStart=/home/appuser/students_deployer/venv/bin/gunicorn     --bind 127.0.0.1:5003     --workers 1     --access-logfile /home/appuser/students_deployer/logs/admin_access.log     --error-logfile /home/appuser/students_deployer/logs/admin_error.log     admin:app
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

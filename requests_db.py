@@ -95,7 +95,10 @@ def init_db(db_path: str | Path) -> None:
 
         # 講師アカウント用テーブル
         _ensure_teachers_table(conn)
-        _ensure_line_notify_settings_table(conn) 
+        _ensure_line_notify_settings_table(conn)
+
+        # 受講者登録テーブル
+        _ensure_students_table(conn)
 
 
 def _row_to_obj(r: sqlite3.Row) -> RequestRow:
@@ -179,7 +182,7 @@ def list_by_student(db_path: str | Path, student_id: str) -> list[RequestRow]:
 
     with _connect(db_path) as conn:
         rows = conn.execute(
-            "SELECT * FROM requests WHERE student_id = ? AND app_name != '_registered' ORDER BY id DESC",
+            "SELECT * FROM requests WHERE student_id = ? ORDER BY id DESC",
             (student_id,),
         ).fetchall()
         return [_row_to_obj(r) for r in rows]
@@ -211,7 +214,7 @@ def search(
         where.append("app_name LIKE ?")
         params.append(f"%{app_name}%")
 
-    sql = "SELECT * FROM requests WHERE app_name != '_registered'"
+    sql = "SELECT * FROM requests"
     if where:
         sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY id DESC"
@@ -311,7 +314,7 @@ def list_all(db_path: str | Path) -> list[RequestRow]:
     db_path = str(db_path)
     init_db(db_path)
     with _connect(db_path) as conn:
-        rows = conn.execute("SELECT * FROM requests WHERE app_name != '_registered' ORDER BY id DESC").fetchall()
+        rows = conn.execute("SELECT * FROM requests ORDER BY id DESC").fetchall()
         return [_row_to_obj(r) for r in rows]
 
 
@@ -465,6 +468,73 @@ def verify_teacher(db_path: str | Path, *, teacher_id: str, password: str) -> bo
         if not r:
             return False
         return _check_password(password, str(r["password_hash"]))
+
+
+# ============================================================
+# Students (受講者登録) — admin が事前登録する
+# ============================================================
+
+def _ensure_students_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS students (
+            student_id TEXT PRIMARY KEY,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+
+
+def register_student(db_path: str | Path, *, student_id: str) -> None:
+    """受講者を登録する。既存なら何もしない（冪等）。"""
+    student_id = (student_id or "").strip()
+    if not student_id:
+        raise ValueError("student_id は必須です。")
+    db_path = str(db_path)
+    init_db(db_path)
+    with _connect(db_path) as conn:
+        _ensure_students_table(conn)
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO students (student_id, created_at)
+            VALUES (?, ?)
+            """,
+            (student_id, _now()),
+        )
+
+
+def unregister_student(db_path: str | Path, *, student_id: str) -> None:
+    """受講者登録を削除する。"""
+    student_id = (student_id or "").strip()
+    db_path = str(db_path)
+    init_db(db_path)
+    with _connect(db_path) as conn:
+        _ensure_students_table(conn)
+        conn.execute("DELETE FROM students WHERE student_id = ?", (student_id,))
+
+
+def student_exists(db_path: str | Path, student_id: str) -> bool:
+    """受講者が登録済みかどうかを返す。"""
+    db_path = str(db_path)
+    init_db(db_path)
+    with _connect(db_path) as conn:
+        _ensure_students_table(conn)
+        r = conn.execute(
+            "SELECT 1 FROM students WHERE student_id = ?", (student_id,)
+        ).fetchone()
+        return r is not None
+
+
+def list_students(db_path: str | Path) -> list[dict[str, str]]:
+    """登録済み受講者を一覧で返す。"""
+    db_path = str(db_path)
+    init_db(db_path)
+    with _connect(db_path) as conn:
+        _ensure_students_table(conn)
+        rows = conn.execute(
+            "SELECT student_id, created_at FROM students ORDER BY student_id"
+        ).fetchall()
+        return [{"student_id": str(r["student_id"]), "created_at": str(r["created_at"])} for r in rows]
 
 
 # ============================================================
