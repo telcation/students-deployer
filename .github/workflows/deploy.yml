@@ -64,6 +64,7 @@ jobs:
               INSERT OR IGNORE INTO students (student_id, created_at)
                 SELECT DISTINCT student_id, MIN(created_at)
                 FROM requests
+                WHERE app_name != '_registered'
                 GROUP BY student_id;
             "
           '
