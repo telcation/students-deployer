@@ -33,6 +33,7 @@ jobs:
             --exclude '*.pyc' \
             --exclude 'logs/' \
             --exclude 'uploads/' \
+            --exclude 'static/' \
             --exclude 'systemd/' \
             ./ appuser@${{ secrets.SSH_HOST }}:/home/appuser/students_deployer/
 
@@ -45,6 +46,12 @@ jobs:
             sudo cp /tmp/systemd_units/*.service /etc/systemd/system/
             sudo systemctl daemon-reload
           '
+
+      - name: トップページを転送
+        run: |
+          rsync -avz \
+            static/ \
+            appuser@${{ secrets.SSH_HOST }}:/var/www/html/
 
       - name: DBマイグレーション（students テーブル作成・既存受講者を移行）
         run: |

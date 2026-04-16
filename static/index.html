@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Telcation 学生サポート（提出・再デプロイ）</title>
+  <meta name="description" content="提出前チェック、再デプロイ手順、注意事項、ログの見方をまとめた学生向けトップページです。" />
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --line: #e2e8f0;
+      --blue: #2563eb;
+      --orange: #f97316;
+      --red: #ef4444;
+      --green: #16a34a;
+      --shadow: 0 8px 24px rgba(15, 23, 42, .08);
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, #ffffff 0%, var(--bg) 40%, var(--bg) 100%);
+    }
+
+    a {
+      color: inherit
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px
+    }
+
+    header {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px 18px;
+    }
+
+    .title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: #fff;
+      font-size: 13px;
+    }
+
+    h1 {
+      margin: 6px 0 6px;
+      font-size: 22px
+    }
+
+    .sub {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.7
+    }
+
+    .alert {
+      margin-top: 14px;
+      padding: 12px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(239, 68, 68, .25);
+      background: rgba(239, 68, 68, .06);
+    }
+
+    .alert b {
+      color: var(--red)
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    @media (min-width: 920px) {
+      .grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    h2 {
+      margin: 2px 0 10px;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hint {
+      color: var(--muted);
+      margin: 0 0 10px;
+      line-height: 1.7
+    }
+
+    .cards {
+      display: grid;
+      gap: 10px
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      background: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .card .left {
+      min-width: 0
+    }
+
+    .card .kicker {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 0 4px
+    }
+
+    .card .name {
+      margin: 0;
+      font-weight: 700;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .card .desc {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      white-space: nowrap;
+      font-weight: 700;
+      text-decoration: none;
+      background: #fff;
+    }
+
+    .btn.primary {
+      border-color: rgba(37, 99, 235, .25);
+      background: rgba(37, 99, 235, .06);
+      color: var(--blue);
+    }
+
+    .btn.orange {
+      border-color: rgba(249, 115, 22, .25);
+      background: rgba(249, 115, 22, .08);
+      color: #9a3412;
+    }
+
+    .btn.red {
+      border-color: rgba(239, 68, 68, .25);
+      background: rgba(239, 68, 68, .07);
+      color: #991b1b;
+    }
+
+    .btn.green {
+      border-color: rgba(22, 163, 74, .25);
+      background: rgba(22, 163, 74, .07);
+      color: #065f46;
+    }
+
+    .mini {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 12px 0 0;
+      line-height: 1.7
+    }
+
+    footer {
+      margin: 16px 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid var(--line);
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    .toplink {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px
+    }
+
+    code.inline {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 2px 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      color: #0f172a
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <span class="badge">Telcation / 学生サポート</span>
+        <span class="badge">提出・再デプロイ</span>
+        <span class="badge">更新：<span id="today"></span></span>
+      </div>
+
+      <h1>提出前チェック・注意事項・手順書（学生向け）</h1>
+      <p class="sub">
+        このページは、<b>提出／再デプロイで失敗しないための資料</b>をまとめたものです。<br />
+        迷ったら、上から順番に読んでください（特に「提出前チェック」と「NG例」）。
+      </p>
+
+      <div class="alert">
+        <b>重要：</b>提出前チェック未確認の提出は、デプロイ失敗になりやすいです。<br />
+        「ローカルで動く」＝「サーバーで動く」ではありません（サーバーは <code class="inline">/種別/学期/学生番号/アプリ名/</code> の深い場所で動きます）。
+      </div>
+
+      <div class="toplink">
+        <a class="btn primary" href="/students/">
+          ▶ 学生用デプロイアプリ ログイン
+        </a>
+        <a class="btn green" href="/community/">
+          💬 学生コミュニティ ログイン
+        </a>
+        <div style="flex-basis:100%; height:0;"></div>
+        <span class="pill">デプロイで困ったら：ログを最後まで読む → そのまま講師に貼る</span>
+      </div>
+
+      <div class="mini">
+        <b>ボタンの色の意味：</b>
+        <span class="pill">青＝操作（ログイン・再デプロイ）</span>
+        <span class="pill">緑＝最優先で読む</span>
+        <span class="pill">オレンジ＝重要な注意</span>
+        <span class="pill">赤＝NG・失敗例</span>
+        <span class="pill">灰色＝通常資料</span>
+      </div>
+
+    </header>
+
+    <div class="grid">
+
+      <section>
+        <h2>✅ 提出前チェック（必ず確認）</h2>
+        <p class="hint">提出直前の最終確認。チェック漏れがあると、ほぼ確実に失敗します。</p>
+
+        <div class="cards">
+          <div class="card">
+            <div class="left">
+              <p class="kicker">全員必須（最優先）</p>
+              <p class="name">提出前チェックリスト（総合）</p>
+              <p class="desc">まず最初にこれ。言語・バージョン・提出物の基本ルール。</p>
+            </div>
+            <a class="btn green" href="/docs/提出前チェックリスト_学生向け.pdf">開く</a>
+          </div>
+
+          <div class="card">
+            <div class="left">
+              <p class="kicker">Python</p>
+              <p class="name">Pythonアプリ提出用 zip 作成手順（Windows / VS Code）</p>
+              <p class="desc">zip構成・requirements.txt・venv除外など。</p>
+            </div>
+            <a class="btn" href="/docs/Python_提出用_zip作成手順_学生向け_1枚.pdf">開く</a>
+          </div>
+
+          <div class="card">
+            <div class="left">
+              <p class="kicker">Java（Spring Boot）</p>
+              <p class="name">Spring Boot 提出用 jar 作成手順（Windows / IntelliJ）</p>
+              <p class="desc">bootJar / package、jar起動確認、ファイル名ルール。</p>
+            </div>
+            <a class="btn" href="/docs/Java_SpringBoot_jar作成手順_学生向け_1枚.pdf">開く</a>
+          </div>
+
+          <div class="card">
+            <div class="left">
+              <p class="kicker">Java（Spring Boot）</p>
+              <p class="name">Java（Spring Boot）提出前チェックリスト</p>
+              <p class="desc">release設定、jarの場所、絶対パスの最終確認。</p>
+            </div>
+            <a class="btn" href="/docs/Java_提出前チェックリスト_学生向け_1枚.pdf">開く</a>
+          </div>
+
+          <div class="card">
+            <div class="left">
+              <p class="kicker">Python（Flask + DB）</p>
+              <p class="name">Flask（DB使用）アプリ 提出前チェックリスト</p>
+              <p class="desc">db.create_all() の場所、DBパス固定、url_for、初回500対策。</p>
+            </div>
+            <a class="btn" href="/docs/Flask_DB_提出前チェックリスト_学生配布用.pdf">開く</a>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>⚠ 注意事項・よくあるミス（必読）</h2>
+        <p class="hint">「動かない」「404」「Internal Server Error」の原因になりやすいポイント。</p>
+
+        <div class="cards">
+          <div class="card">
+            <div class="left">
+              <p class="kicker">超重要</p>
+              <p class="name">リンク指定の注意（相対パス問題）</p>
+              <p class="desc">Spring BootはThymeleafの <code class="inline">th:href</code> / <code class="inline">th:action</code> を使う。</p>
+            </div>
+            <a class="btn orange" href="/docs/SpringBoot_相対パスについて.pdf">開く</a>
+          </div>
+
+          <div class="card">
+            <div class="left">
+              <p class="kicker">注意喚起</p>
+              <p class="name">よくあるNG例（venv提出、requirements無し、ビルド成果物など）</p>
+              <p class="desc">同じ失敗をしないための「地雷集」。提出前に必ず確認。</p>
+            </div>
+            <a class="btn red" href="/docs/NG例_注意喚起_学生向け.pdf">開く</a>
+          </div>
+
+          <div class="card">
+            <div class="left">
+              <p class="kicker">ルール</p>
+              <p class="name">Python / Java バージョン申請ルール</p>
+              <p class="desc">申請したバージョンと違うと、デプロイ失敗します。</p>
+            </div>
+            <a class="btn" href="/docs/Python_Java_バージョン申請ルール_学生向け.pdf">開く</a>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>🔁 再デプロイ手順</h2>
+        <p class="hint">講師から指示があったときのみ実施。勝手に何度も再デプロイしない。</p>
+
+        <div class="cards">
+          <div class="card">
+            <div class="left">
+              <p class="kicker">手順書</p>
+              <p class="name">学生向け 再デプロイ手順書</p>
+              <p class="desc">学生番号 → アプリ選択 → ZIPアップロード → 再デプロイ。</p>
+            </div>
+            <a class="btn primary" href="/docs/学生向け_再デプロイ手順書.pdf">開く</a>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>🧪 トラブル対応（ログの見方）</h2>
+        <p class="hint">失敗したときは、ログに「理由」が書かれています。最後まで読む。</p>
+
+        <div class="cards">
+          <div class="card">
+            <div class="left">
+              <p class="kicker">まずこれ</p>
+              <p class="name">デプロイ失敗ログの読み方（学生向け）</p>
+              <p class="desc">ModuleNotFoundError / UnsupportedClassVersionError などの見分け方。</p>
+            </div>
+            <a class="btn" href="/docs/デプロイ失敗ログの読み方_学生向け.pdf">開く</a>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      © Telcation / Student Support &amp; Deploy Guide
+    </footer>
+  </div>
+
+  <script>
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    document.getElementById('today').textContent = `${yyyy}-${mm}-${dd}`;
+  </script>
+</body>
+
+</html>
