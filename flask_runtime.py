@@ -104,7 +104,16 @@ def render_systemd_unit(service_name: str, app_dir: Path, venv_dir: Path, port: 
         WantedBy=multi-user.target
     """).strip() + "\n"
 
-def render_streamlit_systemd_unit(service_name: str, app_dir: Path, venv_dir: Path, port: int) -> str:
+def render_streamlit_systemd_unit(
+    service_name: str,
+    app_dir: Path,
+    venv_dir: Path,
+    port: int,
+    term: str,
+    student_id: str,
+    app_name: str,
+) -> str:
+    base_url_path = f"f/{term}/{student_id}/{app_name}"
     exec_start = (
         f"{venv_dir}/bin/streamlit run {app_dir}/app.py "
         f"--server.address 127.0.0.1 "
@@ -112,7 +121,7 @@ def render_streamlit_systemd_unit(service_name: str, app_dir: Path, venv_dir: Pa
         f"--server.headless true "
         f"--server.enableCORS false "
         f"--server.enableXsrfProtection false "
-        f"--server.baseUrlPath ''"
+        f"--server.baseUrlPath {base_url_path}"
     )
 
     return textwrap.dedent(f"""
@@ -158,7 +167,15 @@ def setup_streamlit_runtime(
         run([str(pip), "install", "-r", str(req)])
 
     service_name = f"flask_{term}_{student_id}_{app_name}"
-    unit_text = render_streamlit_systemd_unit(service_name, app_dir, venv_dir, port)
+    unit_text = render_streamlit_systemd_unit(
+        service_name,
+        app_dir,
+        venv_dir,
+        port,
+        term,
+        student_id,
+        app_name,
+    )
 
     purge_systemd_unit(service_name)
 
