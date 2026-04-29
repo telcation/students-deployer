@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-
+from typing import Callable
 import config
 import subprocess
 import textwrap
@@ -12,7 +12,9 @@ NGINX_SNIPPETS_DIR = config.NGINX_SNIPPET_DIR
 def _run(cmd: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True)
 
-def reload_nginx_with_check(flash_func=None) -> bool:
+def reload_nginx_with_check(
+    flash_func: Callable[[str, str], None] | None = None,
+) -> bool:
     """nginx -t で検証してから reload。失敗時は stderr を返す。"""
     r = _run(["sudo", "-n", "nginx", "-t"])
     if r.returncode != 0:
@@ -37,7 +39,14 @@ def snippet_filename(term: str, student_id: str, app_name: str) -> str:
 def snippet_path(term: str, student_id: str, app_name: str) -> Path:
     return NGINX_SNIPPETS_DIR / snippet_filename(term, student_id, app_name)
 
-def render_location_block(apptype: str, term: str, student_id: str, app_name: str, port: int | None) -> str:
+def render_location_block(
+    apptype: str,
+    term: str,
+    student_id: str,
+    app_name: str,
+    port: int | None,
+    is_streamlit: bool = False,
+) -> str:
     apptype = (apptype or "").lower()
 
     if apptype == "static":
@@ -57,24 +66,42 @@ def render_location_block(apptype: str, term: str, student_id: str, app_name: st
         location_prefix = f"/f/{term}/{student_id}/{app_name}/"
         prefix_no_slash = location_prefix.rstrip("/")
 
-        return textwrap.dedent(f"""\
-        # {term} / {student_id} / {app_name} (flask:{port})
-        location {location_prefix} {{
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
+        if is_streamlit:
+            return textwrap.dedent(f"""\
+            # {term} / {student_id} / {app_name} (streamlit:{port})
+            location {location_prefix} {{
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
 
-            proxy_set_header X-Forwarded-Prefix {prefix_no_slash};
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_read_timeout 86400;
 
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "upgrade";
-            proxy_read_timeout 86400;
-
-            proxy_pass http://127.0.0.1:{port}/;
-        }}
-        """)
+                proxy_pass http://127.0.0.1:{port};
+            }}
+            """)
+        else:
+            return textwrap.dedent(f"""\
+            # {term} / {student_id} / {app_name} (flask:{port})
+            location {location_prefix} {{
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+    
+                proxy_set_header X-Forwarded-Prefix {prefix_no_slash};
+    
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_read_timeout 86400;
+    
+                proxy_pass http://127.0.0.1:{port}/;
+            }}
+            """)
 
     if apptype == "spring":
         if port is None:
@@ -96,11 +123,26 @@ def render_location_block(apptype: str, term: str, student_id: str, app_name: st
     raise ValueError(f"unknown apptype: {apptype}")
 
 
-def write_student_location(apptype: str, term: str, student_id: str, app_name: str, port: int | None, flash_func=None) -> Path:
+def write_student_location(
+    apptype: str,
+    term: str,
+    student_id: str,
+    app_name: str,
+    port: int | None,
+    flash_func: Callable[[str, str], None] | None = None,
+    is_streamlit: bool = False,
+) -> Path:
     """/etc/nginx/students.d に snippet を作成/更新。"""
     NGINX_SNIPPETS_DIR.mkdir(parents=True, exist_ok=True)
     p = snippet_path(term, student_id, app_name)
-    content = render_location_block(apptype, term, student_id, app_name, port)
+    content = render_location_block(
+        apptype,
+        term,
+        student_id,
+        app_name,
+        port,
+        is_streamlit=is_streamlit,
+    )
     # root で書く必要があるので tee
     r = _run(["sudo", "-n", "tee", str(p)])
     # Can't send content via tee without stdin; do second run with input

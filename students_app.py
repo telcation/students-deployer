@@ -933,6 +933,17 @@ def students_request():
 
     return redirect(url_for("students_dashboard"))
 
+def _detect_streamlit(app_dir: Path) -> bool:
+    """デプロイ済み app.py の内容から Streamlit アプリかどうかを判定する。"""
+    app_py = app_dir / "app.py"
+    if not app_py.exists():
+        return False
+    try:
+        txt = app_py.read_text(encoding="utf-8", errors="replace")
+        return "import streamlit" in txt or "from streamlit" in txt
+    except Exception:
+        return False
+
 
 def _redeploy_now(row, term: str, student_id: str):
     request_id = int(row.id)
@@ -957,13 +968,39 @@ def _redeploy_now(row, term: str, student_id: str):
 
         if row.request_kind == "flask":
             service_name, app_dir = _service_and_appdir(term, student_id, row.app_name, "flask")
-            if not _has_any_file(Path(app_dir)):
+            app_dir_p = Path(app_dir)
+            if not _has_any_file(app_dir_p):
                 return _render_with_msg("まだ .zip / ファイルがアップロードされていません。先にアップロードしてください。", student_id)
 
-            r = subprocess.run(["sudo", "systemctl", "restart", service_name], capture_output=True, text=True)
-            if r.returncode != 0:
-                raise RuntimeError((r.stderr or "").strip() or "systemctl restart failed")
-            _ensure_service_active(service_name)
+            # Streamlit か判定（デプロイ済み app.py を参照）
+            is_streamlit = _detect_streamlit(app_dir_p)
+
+            if is_streamlit:
+                # nginx snippet が Flask 用のままの可能性があるため必ず更新
+                nginx_utils.write_student_location(
+                    "flask", term, student_id, row.app_name,
+                    port=int(row.port), is_streamlit=True,
+                )
+                if not nginx_utils.reload_nginx_with_check():
+                    raise RuntimeError("nginx reload failed")
+                flask_runtime.setup_streamlit_runtime(
+                    term=term,
+                    student_id=student_id,
+                    app_name=row.app_name,
+                    port=int(row.port),
+                )
+            else:
+                # 念のため nginx を Flask 用に戻す（Streamlit→Flask への切り替え対応）
+                nginx_utils.write_student_location(
+                    "flask", term, student_id, row.app_name,
+                    port=int(row.port), is_streamlit=False,
+                )
+                if not nginx_utils.reload_nginx_with_check():
+                    raise RuntimeError("nginx reload failed")
+                r = subprocess.run(["sudo", "systemctl", "restart", service_name], capture_output=True, text=True)
+                if r.returncode != 0:
+                    raise RuntimeError((r.stderr or "").strip() or "systemctl restart failed")
+                _ensure_service_active(service_name)
 
             requests_db.mark_public(REQUESTS_DB_PATH, request_id, port=row.port)
             event = "republish" if prev_status == "stopped" else "publish"
@@ -1104,13 +1141,16 @@ def students_upload():
                 ok, msg = _install_requirements_if_present(app_dir_p)
                 if not ok:
                     raise RuntimeError(msg)
-                app_py = app_dir_p / "app.py"
-                is_streamlit = False
-                if app_py.exists():
-                    txt = app_py.read_text(encoding="utf-8", errors="replace")
-                    is_streamlit = "import streamlit" in txt or "from streamlit" in txt
+                is_streamlit = _detect_streamlit(app_dir_p)
 
                 if is_streamlit:
+                    # nginx snippet を Streamlit 用（WebSocket upgrade）に更新
+                    nginx_utils.write_student_location(
+                        "flask", term, student_id, row.app_name,
+                        port=int(row.port), is_streamlit=True,
+                    )
+                    if not nginx_utils.reload_nginx_with_check():
+                        raise RuntimeError("nginx reload failed")
                     flask_runtime.setup_streamlit_runtime(
                         term=term,
                         student_id=student_id,
@@ -1118,6 +1158,13 @@ def students_upload():
                         port=int(row.port),
                     )
                 else:
+                    # Streamlit→Flask への切り替えにも対応（nginx を Flask 用に戻す）
+                    nginx_utils.write_student_location(
+                        "flask", term, student_id, row.app_name,
+                        port=int(row.port), is_streamlit=False,
+                    )
+                    if not nginx_utils.reload_nginx_with_check():
+                        raise RuntimeError("nginx reload failed")
                     r = subprocess.run(["sudo", "systemctl", "restart", service_name], capture_output=True, text=True)
                     if r.returncode != 0:
                         raise RuntimeError((r.stderr or "").strip() or "systemctl restart failed")
