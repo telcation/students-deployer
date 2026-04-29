@@ -61,6 +61,22 @@ app.url_map.strict_slashes = False  # avoid /login vs /login/ issues
 # ============================================================
 # Helpers
 # ============================================================
+def _decode_best_effort(b: bytes) -> str:
+    try:
+        return b.decode("utf-8", errors="replace")
+    except Exception:
+        return ""
+
+
+def _line_info(text: str, pos: int) -> tuple[int, str]:
+    line_no = text.count("\n", 0, pos) + 1
+    line_start = text.rfind("\n", 0, pos) + 1
+    line_end = text.find("\n", pos)
+    if line_end == -1:
+        line_end = len(text)
+    return line_no, text[line_start:line_end]
+
+
 def _status_jp(status: str) -> str:
     return {
         "received": "申請中",
@@ -103,7 +119,7 @@ def _public_url(term: str, student_id: str, app_name: str, request_kind: str, *,
 
     # LANはIPで開く運用 → host がプライベートIPならLANへ
     if (not force_public) and _is_private_host(request.host):
-        base = LAN_BASE_URL or "http://192.168.3.16"
+        base = LAN_BASE_URL or "http://192.168.3.200"
 
     base = (base or "").rstrip("/")
     if not base_prefix or not base:
@@ -218,13 +234,6 @@ def _check_flask_strict(zip_path: Path) -> List[str]:
             return b
         except Exception:
             return b""
-
-    def _decode_best_effort(b: bytes) -> str:
-        # ここでは「解析用」なので replace で良い（判定は別途BOMで行う）
-        try:
-            return b.decode("utf-8", errors="replace")
-        except Exception:
-            return ""
 
     with zf:
         # 1) requirements.txt UTF-16 は必ずNG
@@ -664,13 +673,6 @@ def _deploy_check(kind: str, upload_path: Path, filename: str, enabled: bool) ->
         issues.append(_issue_from_text(f"不明な種別です: {kind}", severity="NG"))
 
     return _dedupe_issues([i for i in issues if i.problem])
-
-
-
-def make_pdf(issues):
-    # issues = [{file, line, message, solution, snippet}]
-    # reportlab で1件ずつ整形して PDF を作る
-    return pdf_path
 
 
 # ============================================================

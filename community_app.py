@@ -49,7 +49,7 @@ def generate_public_url(row):
 
     # LANはIPで開く運用 → host 判定で切替
     if _is_private_host(request.host):
-        base = LAN_BASE_URL or "http://192.168.3.16"
+        base = LAN_BASE_URL or "http://192.168.3.200"
 
     base = (base or "").rstrip("/")
 

@@ -232,7 +232,7 @@
 
             {# Host がプライベートIPっぽいなら LAN を優先 #}
             {% if request.host.startswith('192.168.') or request.host.startswith('10.') or request.host.startswith('172.') %}
-            {% set base = (config.LAN_BASE_URL if config.LAN_BASE_URL else 'http://192.168.3.16') %}
+            {% set base = (config.LAN_BASE_URL if config.LAN_BASE_URL else 'http://192.168.3.200') %}
             {% endif %}
 
             {% if r.kind == 'static' %}
