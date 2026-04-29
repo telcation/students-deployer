@@ -1104,16 +1104,29 @@ def students_upload():
                 ok, msg = _install_requirements_if_present(app_dir_p)
                 if not ok:
                     raise RuntimeError(msg)
+                app_py = app_dir_p / "app.py"
+                is_streamlit = False
+                if app_py.exists():
+                    txt = app_py.read_text(encoding="utf-8", errors="replace")
+                    is_streamlit = "import streamlit" in txt or "from streamlit" in txt
+
+                if is_streamlit:
+                    flask_runtime.setup_streamlit_runtime(
+                        term=term,
+                        student_id=student_id,
+                        app_name=row.app_name,
+                        port=int(row.port),
+                    )
+                else:
+                    r = subprocess.run(["sudo", "systemctl", "restart", service_name], capture_output=True, text=True)
+                    if r.returncode != 0:
+                        raise RuntimeError((r.stderr or "").strip() or "systemctl restart failed")
+                    _ensure_service_active(service_name)
             else:
                 # (check OFF) single file: html -> templates, else -> static
                 target_dir = (app_dir_p / "templates") if lower.endswith((".html", ".htm")) else (app_dir_p / "static")
                 target_dir.mkdir(parents=True, exist_ok=True)
                 (target_dir / filename).write_bytes(save_path.read_bytes())
-
-            r = subprocess.run(["sudo", "systemctl", "restart", service_name], capture_output=True, text=True)
-            if r.returncode != 0:
-                raise RuntimeError((r.stderr or "").strip() or "systemctl restart failed")
-            _ensure_service_active(service_name)
 
         else:
             public_dir = common_paths.public_dir(term, student_id, row.app_name)

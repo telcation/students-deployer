@@ -65,10 +65,13 @@ def render_location_block(apptype: str, term: str, student_id: str, app_name: st
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
 
-            # ★ Flask の SCRIPT_NAME 対応（wsgi_prefix.py が参照）
             proxy_set_header X-Forwarded-Prefix {prefix_no_slash};
 
-            # ★ 末尾 / あり（/f/.../xxx → upstream /xxx に正しく渡す）
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_read_timeout 86400;
+
             proxy_pass http://127.0.0.1:{port}/;
         }}
         """)

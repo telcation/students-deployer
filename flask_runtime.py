@@ -104,6 +104,74 @@ def render_systemd_unit(service_name: str, app_dir: Path, venv_dir: Path, port: 
         WantedBy=multi-user.target
     """).strip() + "\n"
 
+def render_streamlit_systemd_unit(service_name: str, app_dir: Path, venv_dir: Path, port: int) -> str:
+    exec_start = (
+        f"{venv_dir}/bin/streamlit run {app_dir}/app.py "
+        f"--server.address 127.0.0.1 "
+        f"--server.port {port} "
+        f"--server.headless true "
+        f"--server.enableCORS false "
+        f"--server.enableXsrfProtection false "
+        f"--server.baseUrlPath ''"
+    )
+
+    return textwrap.dedent(f"""
+        [Unit]
+        Description=Streamlit student app ({service_name})
+        After=network.target
+
+        [Service]
+        Type=simple
+        User={APP_USER}
+        Group={APP_GROUP}
+        WorkingDirectory={app_dir}
+        ExecStart={exec_start}
+        Restart=always
+        Environment=PYTHONUNBUFFERED=1
+
+        [Install]
+        WantedBy=multi-user.target
+    """).strip() + "\n"
+
+
+def setup_streamlit_runtime(
+    term: str,
+    student_id: str,
+    app_name: str,
+    port: int,
+) -> None:
+    app_dir = Path(config.BASE_DIR_FLASK) / term / student_id / app_name
+    venv_dir = app_dir / "venv"
+    log_dir = app_dir / "logs"
+
+    app_dir.mkdir(parents=True, exist_ok=True)
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    pip = venv_dir / "bin" / "pip"
+    if not pip.exists():
+        raise RuntimeError(f"venv が見つかりません: {venv_dir}")
+
+    run([str(pip), "install", "streamlit"])
+
+    req = app_dir / "requirements.txt"
+    if req.exists():
+        run([str(pip), "install", "-r", str(req)])
+
+    service_name = f"flask_{term}_{student_id}_{app_name}"
+    unit_text = render_streamlit_systemd_unit(service_name, app_dir, venv_dir, port)
+
+    purge_systemd_unit(service_name)
+
+    with tempfile.NamedTemporaryFile("w", delete=False) as f:
+        f.write(unit_text)
+        tmp_unit = f.name
+
+    unit_path = Path(config.SYSTEMD_DIR) / f"{service_name}.service"
+    run(["sudo", "-n", "install", "-m", "644", tmp_unit, str(unit_path)])
+    run(["sudo", "-n", "systemctl", "daemon-reload"])
+    run(["sudo", "-n", "systemctl", "enable", service_name])
+    run(["sudo", "-n", "systemctl", "restart", service_name])
+
 
 def setup_flask_runtime(
     term: str,
