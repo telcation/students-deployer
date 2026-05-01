@@ -117,6 +117,13 @@ WSGI_PREFIX_ENTRYPOINT = os.environ.get("WSGI_PREFIX_ENTRYPOINT", "wsgi_prefix:a
 # -----------------------
 # on / off
 DEPLOY_CHECK_DEFAULT = os.environ.get("DEPLOY_CHECK_DEFAULT", "on")
+# -----------------------
+# Upload safety limits
+# -----------------------
+MAX_UPLOAD_BYTES = 200 * 1024 * 1024
+MAX_ZIP_FILES = 3000
+MAX_ZIP_TOTAL_BYTES = 300 * 1024 * 1024
+MAX_SINGLE_FILE_BYTES = 100 * 1024 * 1024
 
 # -----------------------
 # Runtime versions
