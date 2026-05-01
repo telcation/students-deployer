@@ -80,6 +80,7 @@ def render_systemd_unit(service_name: str, app_dir: Path, venv_dir: Path, port: 
     # - 受講者アプリ本体は APP_IMPORT (= "app:app") として読み込む
     exec_start = (
         f"{venv_dir}/bin/gunicorn --bind 127.0.0.1:{port} --workers 1 "
+        f"--timeout {config.GUNICORN_TIMEOUT} "
         f"--access-logfile {app_dir}/logs/access.log "
         f"--error-logfile {app_dir}/logs/error.log "
         f"--pythonpath {config.WSGI_PREFIX_DIR} "

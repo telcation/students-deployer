@@ -109,7 +109,7 @@ FLASK_TEMPLATE_DIR = Path(os.environ.get("FLASK_TEMPLATE_DIR", str(PROJECT_DIR /
 # -----------------------
 # wsgi_prefix.py を import できるディレクトリ（基盤側の共通ファイル置き場）
 WSGI_PREFIX_DIR = Path(os.environ.get("WSGI_PREFIX_DIR", "/home/appuser/students_deployer"))
-# gunicorn の起動ターゲット（wsgi_prefix.py 内の app）
+# # Runtime versions の起動ターゲット（wsgi_prefix.py 内の app）
 WSGI_PREFIX_ENTRYPOINT = os.environ.get("WSGI_PREFIX_ENTRYPOINT", "wsgi_prefix:app")
 
 # -----------------------
@@ -131,6 +131,7 @@ MAX_SINGLE_FILE_BYTES = 100 * 1024 * 1024
 DEFAULT_PYTHON_VERSION = os.environ.get("DEFAULT_PYTHON_VERSION", "3.12")
 DEFAULT_JAVA_RELEASE = os.environ.get("DEFAULT_JAVA_RELEASE", "25")
 DEFAULT_SPRING_BUILD_TOOL = os.environ.get("DEFAULT_SPRING_BUILD_TOOL", "gradle")
+GUNICORN_TIMEOUT = int(os.environ.get("GUNICORN_TIMEOUT", "300"))
 
 SUPPORTED_PYTHON_VERSIONS = ["3.12", "3.13", "3.14"]
 SUPPORTED_JAVA_RELEASES = ["17", "21", "25"]
