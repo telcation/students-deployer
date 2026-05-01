@@ -304,12 +304,12 @@ def _check_flask_strict(zip_path: Path) -> List[str]:
         if js_abs_hits:
             shown = js_abs_hits[:8]
             issues.append(
-                "[WARN] JS ファイルに \"/...\"始まりの絶対パス参照が含まれています。"
-                "context-path配下では404になりやすいので確認してください。例: "
+                "JS ファイルに \"/...\"始まりの絶対パス参照が含まれています。"
+                "context-path配下では必ず404になります。例: "
                 + " / ".join(shown)
             )
             if len(js_abs_hits) > 8:
-                issues.append(f"[WARN]（他にも {len(js_abs_hits) - 8} 件あります）")
+                issues.append(f"（他にも {len(js_abs_hits) - 8} 件あります）")
 
         # 3) url_for 整合性チェック（テンプレート内で参照している endpoint が Python 側に存在するか）
         # 3-1) Python側 endpoint 抽出（app.route / bp.route + Blueprint名）
