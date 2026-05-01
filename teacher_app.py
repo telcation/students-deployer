@@ -201,7 +201,7 @@ def _get_service_state(service_name: str) -> str:
 
 def _runtime_state(kind: str, term: str, student_id: str, app_name: str) -> str:
     kind = (kind or "").lower()
-    if kind not in ("flask", "spring"):
+    if kind not in ("flask", "streamlit", "spring"):
         return "-"
     service_name = common_paths.service_name(kind, term, student_id, app_name)
     out = _get_service_state(service_name)
@@ -215,6 +215,10 @@ def _runtime_state(kind: str, term: str, student_id: str, app_name: str) -> str:
 def _service_and_appdir(term: str, student_id: str, app_name: str, kind: str) -> tuple[str, str]:
     if kind == "flask":
         service_name = common_paths.service_name("flask", term, student_id, app_name)
+        app_dir = f"{config.BASE_DIR_FLASK}/{term}/{student_id}/{app_name}"
+        return service_name, app_dir
+    if kind == "streamlit":
+        service_name = common_paths.service_name("streamlit", term, student_id, app_name)
         app_dir = f"{config.BASE_DIR_FLASK}/{term}/{student_id}/{app_name}"
         return service_name, app_dir
     if kind == "spring":
@@ -254,7 +258,7 @@ def teacher_search():
         runtime = _runtime_state(kind, term, r.student_id, r.app_name)
 
         version = "-"
-        if kind == "flask":
+        if kind in ("flask", "streamlit"):
             pv = getattr(r, "python_version", None) or "auto"
             version = f"Python {pv}"
         elif kind == "spring":
@@ -318,7 +322,7 @@ def teacher_action():
         try:
             port = None
 
-            if apptype in ("flask", "spring"):
+            if apptype in ("flask", "streamlit", "spring"):
                 # ポート確保（欠番運用）
                 port = ids_ports.auto_port(apptype, student_id)
 
@@ -332,6 +336,19 @@ def teacher_action():
                 )
 
                 nginx_utils.write_student_location("flask", term, student_id, app_name, port=port, flash_func=flash)
+                if not nginx_utils.reload_nginx_with_check(flash):
+                    raise RuntimeError("nginx reload failed")
+
+            elif apptype == "streamlit":
+                flask_runtime.setup_flask_runtime(
+                    term=term,
+                    student_id=student_id,
+                    app_name=app_name,
+                    port=port,
+                    python_version=(getattr(row, "python_version", None) or config.DEFAULT_PYTHON_VERSION),
+                )
+
+                nginx_utils.write_student_location("flask", term, student_id, app_name, port=port, is_streamlit=True, flash_func=flash)
                 if not nginx_utils.reload_nginx_with_check(flash):
                     raise RuntimeError("nginx reload failed")
 
@@ -374,8 +391,7 @@ def teacher_action():
             return redirect(return_to)
     
         try:
-            if apptype in ("flask", "spring"):
-                service_name, _app_dir = _service_and_appdir(term, student_id, app_name, apptype)
+            if apptype in ("flask", "streamlit", "spring"):
                 subprocess.run(["sudo", "-n", "systemctl", "stop", service_name], check=False)
             requests_db.mark_stopped(REQUESTS_DB_PATH, row.id)
             flash("停止しました", "ok")
@@ -399,6 +415,11 @@ def teacher_action():
             if apptype == "spring":
                 service_name = common_paths.service_name("spring", term, student_id, app_name)
                 app_dir = f"{config.BASE_DIR_SPRING}/{term}/{student_id}/{app_name}"
+                _systemd_purge(service_name)
+
+            elif apptype == "streamlit":
+                service_name = common_paths.service_name("streamlit", term, student_id, app_name)
+                app_dir = f"{config.BASE_DIR_FLASK}/{term}/{student_id}/{app_name}"
                 _systemd_purge(service_name)
 
             elif apptype == "flask":

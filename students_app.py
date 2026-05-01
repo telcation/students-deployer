@@ -112,7 +112,7 @@ def _is_private_host(host: str) -> bool:
 
 
 def _public_url(term: str, student_id: str, app_name: str, request_kind: str, *, force_public: bool = False) -> str:
-    base_prefix = {"static": "/s", "flask": "/f", "spring": "/b"}.get(request_kind, "")
+    base_prefix = {"static": "/s", "flask": "/f", "streamlit": "/f", "spring": "/b"}.get(request_kind, "")
 
     # 外部をデフォルト
     base = PUBLIC_BASE_URL
@@ -276,6 +276,40 @@ def _check_flask_strict(zip_path: Path) -> List[str]:
             )
             if len(abs_hits) > 8:
                 issues.append(f"（他にも {len(abs_hits) - 8} 件あります）")
+
+
+        # 2b) JS ファイルの絶対パス検出 (static/**/*.js, templates/**/*.js)
+        js_abs_pat = re.compile(
+            r'(?:fetch|axios\s*(?:\.\s*(?:get|post|put|delete|patch|request))?)\s*\(\s*[\'"](/[^\'"]{2,}?)[\'"]'
+            r'|location\s*(?:\.\s*href)?\s*=\s*[\'"](/[^\'"]{2,}?)[\'"]'
+            r'|[\'"](/(?:[A-Za-z0-9_\-]+/)[^\'"]{1,}?)[\'"]',
+            re.IGNORECASE,
+        )
+        js_members = [
+            n for n in scan.names
+            if n.lower().endswith(".js")
+            and (n.startswith("static/") or n.startswith("templates/"))
+        ]
+        js_abs_hits: List[str] = []
+        for m in js_members:
+            txt = _decode_best_effort(_read_member(m))
+            if not txt:
+                continue
+            for mm in js_abs_pat.finditer(txt):
+                path_val = mm.group(1) or mm.group(2) or mm.group(3) or ""
+                if path_val.startswith("//") or path_val.startswith("/#"):
+                    continue
+                js_abs_hits.append(f"{m}: {mm.group(0)[:140]}")
+
+        if js_abs_hits:
+            shown = js_abs_hits[:8]
+            issues.append(
+                "[WARN] JS ファイルに \"/...\"始まりの絶対パス参照が含まれています。"
+                "context-path配下では404になりやすいので確認してください。例: "
+                + " / ".join(shown)
+            )
+            if len(js_abs_hits) > 8:
+                issues.append(f"[WARN]（他にも {len(js_abs_hits) - 8} 件あります）")
 
         # 3) url_for 整合性チェック（テンプレート内で参照している endpoint が Python 側に存在するか）
         # 3-1) Python側 endpoint 抽出（app.route / bp.route + Blueprint名）
@@ -659,6 +693,12 @@ def _deploy_check(kind: str, upload_path: Path, filename: str, enabled: bool) ->
             return _dedupe_issues(issues)
         issues.extend(_check_flask_strict_issues(upload_path))
 
+    elif kind == "streamlit":
+        if not lower.endswith(".zip"):
+            issues.append(_issue_from_text("Streamlit提出（チェックON）は zip 必須です。", severity="NG"))
+            return _dedupe_issues(issues)
+        issues.extend(_check_flask_strict_issues(upload_path))  # app.py/requirements.txt 等は共通
+
     elif kind == "static":
         if lower.endswith(".zip"):
             issues.extend(_check_static_strict_issues(upload_path))
@@ -689,7 +729,7 @@ def _render_with_msg(msg: str, student_id: str):
         r.service_state = ""
         r.report_exists = _report_path(student_id, int(r.id)).exists()
 
-        if r.request_kind in ("flask", "spring") and r.status in ("done", "public", "stopped"):
+        if r.request_kind in ("flask", "streamlit", "spring") and r.status in ("done", "public", "stopped"):
             service_name, _ = _service_and_appdir(term, student_id, r.app_name, r.request_kind)
             r.service_state = _get_service_state(service_name)
             if r.status == "stopped":
@@ -814,14 +854,14 @@ def students_request():
 
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,40}", app_name):
         return _render_with_msg("アプリ名は英数字/ハイフン/アンダースコアで入力してください（最大40文字）。", student_id)
-    if request_kind not in ("static", "flask", "spring"):
+    if request_kind not in ("static", "flask", "streamlit", "spring"):
         return _render_with_msg("種別が不正です。", student_id)
 
     # 追加：種別ごとのバージョン（autoは廃止。未選択なら既定値へ寄せる）
     python_version = None
     java_release = None
 
-    if request_kind == "flask":
+    if request_kind in ("flask", "streamlit"):
         v = (request.form.get("python_version") or "").strip()
         if v not in getattr(config, "SUPPORTED_PYTHON_VERSIONS", []):
             v = "3.12"
@@ -869,7 +909,7 @@ def students_request():
     try:
         port = None
 
-        if request_kind in ("flask", "spring"):
+        if request_kind in ("flask", "streamlit", "spring"):
             # ポート確保（欠番運用）
             port = ids_ports.auto_port(request_kind, student_id)
 
@@ -882,6 +922,18 @@ def students_request():
                 python_version=(python_version or getattr(config, "DEFAULT_PYTHON_VERSION", "3.12")),
             )
             nginx_utils.write_student_location("flask", term, student_id, app_name, port=int(port))
+            if not nginx_utils.reload_nginx_with_check():
+                raise RuntimeError("nginx reload failed")
+
+        elif request_kind == "streamlit":
+            flask_runtime.setup_flask_runtime(
+                term=term,
+                student_id=student_id,
+                app_name=app_name,
+                port=int(port),
+                python_version=(python_version or getattr(config, "DEFAULT_PYTHON_VERSION", "3.12")),
+            )
+            nginx_utils.write_student_location("flask", term, student_id, app_name, port=int(port), is_streamlit=True)
             if not nginx_utils.reload_nginx_with_check():
                 raise RuntimeError("nginx reload failed")
 
@@ -933,17 +985,6 @@ def students_request():
 
     return redirect(url_for("students_dashboard"))
 
-def _detect_streamlit(app_dir: Path) -> bool:
-    """デプロイ済み app.py の内容から Streamlit アプリかどうかを判定する。"""
-    app_py = app_dir / "app.py"
-    if not app_py.exists():
-        return False
-    try:
-        txt = app_py.read_text(encoding="utf-8", errors="replace")
-        return "import streamlit" in txt or "from streamlit" in txt
-    except Exception:
-        return False
-
 
 def _redeploy_now(row, term: str, student_id: str):
     request_id = int(row.id)
@@ -972,35 +1013,41 @@ def _redeploy_now(row, term: str, student_id: str):
             if not _has_any_file(app_dir_p):
                 return _render_with_msg("まだ .zip / ファイルがアップロードされていません。先にアップロードしてください。", student_id)
 
-            # Streamlit か判定（デプロイ済み app.py を参照）
-            is_streamlit = _detect_streamlit(app_dir_p)
+            nginx_utils.write_student_location(
+                "flask", term, student_id, row.app_name,
+                port=int(row.port), is_streamlit=False,
+            )
+            if not nginx_utils.reload_nginx_with_check():
+                raise RuntimeError("nginx reload failed")
+            r = subprocess.run(["sudo", "systemctl", "restart", service_name], capture_output=True, text=True)
+            if r.returncode != 0:
+                raise RuntimeError((r.stderr or "").strip() or "systemctl restart failed")
+            _ensure_service_active(service_name)
 
-            if is_streamlit:
-                # nginx snippet が Flask 用のままの可能性があるため必ず更新
-                nginx_utils.write_student_location(
-                    "flask", term, student_id, row.app_name,
-                    port=int(row.port), is_streamlit=True,
-                )
-                if not nginx_utils.reload_nginx_with_check():
-                    raise RuntimeError("nginx reload failed")
-                flask_runtime.setup_streamlit_runtime(
-                    term=term,
-                    student_id=student_id,
-                    app_name=row.app_name,
-                    port=int(row.port),
-                )
-            else:
-                # 念のため nginx を Flask 用に戻す（Streamlit→Flask への切り替え対応）
-                nginx_utils.write_student_location(
-                    "flask", term, student_id, row.app_name,
-                    port=int(row.port), is_streamlit=False,
-                )
-                if not nginx_utils.reload_nginx_with_check():
-                    raise RuntimeError("nginx reload failed")
-                r = subprocess.run(["sudo", "systemctl", "restart", service_name], capture_output=True, text=True)
-                if r.returncode != 0:
-                    raise RuntimeError((r.stderr or "").strip() or "systemctl restart failed")
-                _ensure_service_active(service_name)
+            requests_db.mark_public(REQUESTS_DB_PATH, request_id, port=row.port)
+            event = "republish" if prev_status == "stopped" else "publish"
+            public_url = _public_url(term, student_id, row.app_name, row.request_kind, force_public=True)
+            _notify_line_event(event, student_id=student_id, term=term, app_name=row.app_name, request_kind=row.request_kind, public_url=public_url, ok=True)
+            return redirect(url_for("students_dashboard"))
+
+        if row.request_kind == "streamlit":
+            service_name, app_dir = _service_and_appdir(term, student_id, row.app_name, "streamlit")
+            app_dir_p = Path(app_dir)
+            if not _has_any_file(app_dir_p):
+                return _render_with_msg("まだ .zip / ファイルがアップロードされていません。先にアップロードしてください。", student_id)
+
+            nginx_utils.write_student_location(
+                "flask", term, student_id, row.app_name,
+                port=int(row.port), is_streamlit=True,
+            )
+            if not nginx_utils.reload_nginx_with_check():
+                raise RuntimeError("nginx reload failed")
+            flask_runtime.setup_streamlit_runtime(
+                term=term,
+                student_id=student_id,
+                app_name=row.app_name,
+                port=int(row.port),
+            )
 
             requests_db.mark_public(REQUESTS_DB_PATH, request_id, port=row.port)
             event = "republish" if prev_status == "stopped" else "publish"
@@ -1062,7 +1109,7 @@ def students_upload():
 
     # deploy_check がフォームから来ていない事故対策：
     # 「来てないならON扱い」にして、必ず検出する
-    if raw is None and row.request_kind in ("spring", "flask", "static"):
+    if raw is None and row.request_kind in ("spring", "flask", "streamlit", "static"):
         deploy_check = "on"
 
     check_enabled = deploy_check in ("on", "1", "true", "yes")
@@ -1092,7 +1139,7 @@ def students_upload():
 
         if has_ng:
             # ★ NG のときは「停止」にする（停止表示と実稼働を一致させる）
-            if row.request_kind in ("flask", "spring"):
+            if row.request_kind in ("flask", "streamlit", "spring"):
                 try:
                     service_name, _ = _service_and_appdir(term, student_id, row.app_name, row.request_kind)
                     subprocess.run(["sudo", "systemctl", "stop", service_name], capture_output=True, text=True)
@@ -1137,43 +1184,50 @@ def students_upload():
 
             if lower.endswith(".zip"):
                 _safe_extract_zip(save_path, app_dir_p)
-                # ★追加：zip のときだけ requirements を反映
                 ok, msg = _install_requirements_if_present(app_dir_p)
                 if not ok:
                     raise RuntimeError(msg)
-                is_streamlit = _detect_streamlit(app_dir_p)
-
-                if is_streamlit:
-                    # nginx snippet を Streamlit 用（WebSocket upgrade）に更新
-                    nginx_utils.write_student_location(
-                        "flask", term, student_id, row.app_name,
-                        port=int(row.port), is_streamlit=True,
-                    )
-                    if not nginx_utils.reload_nginx_with_check():
-                        raise RuntimeError("nginx reload failed")
-                    flask_runtime.setup_streamlit_runtime(
-                        term=term,
-                        student_id=student_id,
-                        app_name=row.app_name,
-                        port=int(row.port),
-                    )
-                else:
-                    # Streamlit→Flask への切り替えにも対応（nginx を Flask 用に戻す）
-                    nginx_utils.write_student_location(
-                        "flask", term, student_id, row.app_name,
-                        port=int(row.port), is_streamlit=False,
-                    )
-                    if not nginx_utils.reload_nginx_with_check():
-                        raise RuntimeError("nginx reload failed")
-                    r = subprocess.run(["sudo", "systemctl", "restart", service_name], capture_output=True, text=True)
-                    if r.returncode != 0:
-                        raise RuntimeError((r.stderr or "").strip() or "systemctl restart failed")
-                    _ensure_service_active(service_name)
+                nginx_utils.write_student_location(
+                    "flask", term, student_id, row.app_name,
+                    port=int(row.port), is_streamlit=False,
+                )
+                if not nginx_utils.reload_nginx_with_check():
+                    raise RuntimeError("nginx reload failed")
+                r = subprocess.run(["sudo", "systemctl", "restart", service_name], capture_output=True, text=True)
+                if r.returncode != 0:
+                    raise RuntimeError((r.stderr or "").strip() or "systemctl restart failed")
+                _ensure_service_active(service_name)
             else:
                 # (check OFF) single file: html -> templates, else -> static
                 target_dir = (app_dir_p / "templates") if lower.endswith((".html", ".htm")) else (app_dir_p / "static")
                 target_dir.mkdir(parents=True, exist_ok=True)
                 (target_dir / filename).write_bytes(save_path.read_bytes())
+
+        elif row.request_kind == "streamlit":
+            service_name, app_dir = _service_and_appdir(term, student_id, row.app_name, "streamlit")
+            app_dir_p = Path(app_dir)
+            app_dir_p.mkdir(parents=True, exist_ok=True)
+
+            if lower.endswith(".zip"):
+                _safe_extract_zip(save_path, app_dir_p)
+                ok, msg = _install_requirements_if_present(app_dir_p)
+                if not ok:
+                    raise RuntimeError(msg)
+                nginx_utils.write_student_location(
+                    "flask", term, student_id, row.app_name,
+                    port=int(row.port), is_streamlit=True,
+                )
+                if not nginx_utils.reload_nginx_with_check():
+                    raise RuntimeError("nginx reload failed")
+                flask_runtime.setup_streamlit_runtime(
+                    term=term,
+                    student_id=student_id,
+                    app_name=row.app_name,
+                    port=int(row.port),
+                )
+            else:
+                # 単ファイルはStreamlitでは非対応
+                raise RuntimeError("Streamlit アプリは .zip 形式でアップロードしてください。")
 
         else:
             public_dir = common_paths.public_dir(term, student_id, row.app_name)
@@ -1242,7 +1296,7 @@ def students_stop():
         return _render_with_msg("この状態ではデプロイ中止できません。", student_id)
 
     # Flask / Spring は systemd を停止、static は「停止」状態だけ付ける
-    if row.request_kind in ("flask", "spring") and row.status != "stopped":
+    if row.request_kind in ("flask", "streamlit", "spring") and row.status != "stopped":
         service_name, _ = _service_and_appdir(term, student_id, row.app_name, row.request_kind)
         r = subprocess.run(["sudo", "systemctl", "stop", service_name], capture_output=True, text=True)
         if r.returncode != 0:

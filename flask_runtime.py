@@ -167,7 +167,7 @@ def setup_streamlit_runtime(
     if req.exists():
         run([str(pip), "install", "-r", str(req)])
 
-    service_name = f"flask_{term}_{student_id}_{app_name}"
+    service_name = f"streamlit_{term}_{student_id}_{app_name}"
     unit_text = render_streamlit_systemd_unit(
         service_name,
         app_dir,

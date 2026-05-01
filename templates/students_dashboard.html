@@ -198,6 +198,7 @@
         <select name="request_kind" id="kind" required>
           <option value="static">静的サイト（HTML/CSS/JS）</option>
           <option value="flask">Flask（Python）</option>
+          <option value="streamlit">Streamlit（Python）</option>
           <option value="spring">Spring Boot（Java）</option>
         </select>
 
@@ -292,7 +293,7 @@
               <div class="small muted">未アップロード</div>
               {% endif %}
 
-              {% if r.status in ("done", "public", "stopped") and r.request_kind in ("static", "flask", "spring") %}
+              {% if r.status in ("done", "public", "stopped") and r.request_kind in ("static", "flask", "streamlit", "spring") %}
 
               <form id="uploadForm{{ r.id }}" method="post" action="{{ url_for('students_upload') }}"
                 enctype="multipart/form-data">
@@ -306,7 +307,7 @@
 
                 {% if r.request_kind == 'spring' %}
                 <input type="file" name="file" accept=".jar" required>
-                {% elif r.request_kind == 'flask' %}
+                {% elif r.request_kind in ('flask', 'streamlit') %}
                 <input type="file" name="file"
                   accept=".zip,.html,.htm,.css,.js,.json,.png,.jpg,.jpeg,.gif,.svg,.webp,.ico,.txt" required>
                 {% else %}
@@ -328,7 +329,7 @@
 
               {% endif %}
 
-              {% if r.request_kind in ("flask", "spring") and r.status in ("done", "public") %}
+              {% if r.request_kind in ("flask", "streamlit", "spring") and r.status in ("done", "public") %}
               <form method="post" action="{{ url_for('students_stop') }}">
                 <input type="hidden" name="request_id" value="{{ r.id }}">
                 <div class="row" style="margin-top:10px;">
@@ -355,7 +356,7 @@
 
     function sync() {
       const v = kind.value;
-      flaskBox.style.display = (v === 'flask') ? 'block' : 'none';
+      flaskBox.style.display = (v === 'flask' || v === 'streamlit') ? 'block' : 'none';
       springBox.style.display = (v === 'spring') ? 'block' : 'none';
     }
     kind.addEventListener('change', sync);
