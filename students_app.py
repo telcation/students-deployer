@@ -33,7 +33,7 @@ import spring_runtime  # type: ignore
 
 from students_ops import _get_service_state, _service_and_appdir, _install_requirements_if_present, _has_any_file
 from zip_safety import _scan_zip, _zip_is_single_folder, _safe_extract_zip, _basic_file_safety_check
-from deploy_report import Issue, _issue_from_text, _dedupe_issues, issues_to_items, _report_path, _delete_report_if_exists, _write_pdf_report
+from deploy_report import Issue, _issue_from_text, _dedupe_issues, issues_to_items, _report_path, _delete_report_if_exists, _write_html_report
 from line_notify import _notify_first_deploy_result
 
 
@@ -826,10 +826,10 @@ def students_logout():
 @login_required
 def students_report(request_id: int):
     student_id = session["student_id"]
-    pdf = _report_path(student_id, request_id)
-    if not pdf.exists():
+    report = _report_path(student_id, request_id)
+    if not report.exists():
         return _render_with_msg("チェックレポートはありません（チェックOFF、または問題なし）。", student_id)
-    return send_file(pdf, mimetype="application/pdf", as_attachment=True, download_name=pdf.name)
+    return send_file(report, mimetype="text/html", as_attachment=False)
 
 
 @app.get(f"{URL_PREFIX}/")
@@ -1127,11 +1127,11 @@ def students_upload():
 
         # レポートは「指摘があれば」作る（WARN/INFO含む）
         if issues:
-            pdf = _report_path(student_id, request_id)
-            _write_pdf_report(
-                pdf,
-                title=f"デプロイ前チェックレポート（{row.request_kind}） request_id={request_id}",
-                items=issues_to_items(issues),
+            report = _report_path(student_id, request_id)
+            _write_html_report(
+                report,
+                title=f"アプリ名: {row.app_name} / 種別: {row.request_kind}",
+                issues=issues,
             )
 
         # 不合格（デプロイ停止）は NG が1件でもある場合だけ
