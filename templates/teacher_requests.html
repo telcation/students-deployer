@@ -169,6 +169,7 @@
           <option value="received" {% if status=='received' %}selected{% endif %}>申請中</option>
           <option value="done" {% if status=='done' %}selected{% endif %}>完了</option>
           <option value="stopped" {% if status=='stopped' %}selected{% endif %}>停止</option>
+          <option value="error" {% if status=='error' %}selected{% endif %}>エラー</option>
           <option value="all" {% if status=='all' %}selected{% endif %}>すべて</option>
         </select>
       </div>
@@ -216,6 +217,7 @@
             {% if r.status=='done' %}<span class="tag2">{{ r.status_jp }}</span>
             {% elif r.status=='public' %}<span class="tag2">{{ r.status_jp }}</span>
             {% elif r.status=='stopped' %}<span class="tag3">{{ r.status_jp }}</span>
+            {% elif r.status=='error' %}<span class="tag3" style="background:#e74c3c;color:#fff;">{{ r.status_jp }}</span>
             {% else %}<span class="tag3">{{ r.status_jp }}</span>
             {% endif %}
           </td>
@@ -256,7 +258,7 @@
           </td>
           <td>
             <!-- 操作ボタン（students_deployer.py の teacher_action に合わせる） -->
-            {% if r.status == 'received' %}
+            {% if r.status in ['received', 'error'] %}
             <form class="inline" method="post" action="{{ url_for('teacher_action') }}">
               <input type="hidden" name="student_id" value="{{ r.student_id }}">
               <input type="hidden" name="app_name" value="{{ r.app_name }}">
