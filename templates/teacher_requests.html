@@ -291,6 +291,13 @@
             {% endif %}
 
             {% if r.status in ['done','public','stopped'] %}
+            <a class="btn secondary"
+               href="{{ url_for('teacher_download', student_id=r.student_id, app_name=r.app_name) }}">
+              ダウンロード
+            </a>
+            {% endif %}
+
+            {% if r.status in ['done','public','stopped'] %}
             <form class="inline" method="post" action="{{ url_for('teacher_action') }}"
               onsubmit="return confirm('物理削除しますか？');">
               <input type="hidden" name="student_id" value="{{ r.student_id }}">

@@ -13,7 +13,7 @@ from pathlib import Path
 from functools import wraps
 from typing import Any
 
-from flask import Flask, request, render_template, redirect, url_for, session, abort, flash
+from flask import Flask, request, render_template, redirect, url_for, session, abort, flash, send_file
 
 import re
 import subprocess
@@ -462,6 +462,51 @@ def teacher_action():
 @app.get("/")
 def index():
     return redirect(f"{URL_PREFIX}/search")
+
+
+@app.get(f"{URL_PREFIX}/download")
+@teacher_login_required
+def teacher_download():
+    """デプロイ済みapp_dirを再zip化してダウンロード"""
+    import io, zipfile, tempfile, os
+
+    student_id = (request.args.get("student_id") or "").strip()
+    app_name   = (request.args.get("app_name")   or "").strip()
+
+    row = _load_request_by_student_app(student_id, app_name)
+    if row is None:
+        abort(404)
+
+    kind = (getattr(row, "request_kind", None) or "static").strip().lower()
+    if kind not in ("flask", "streamlit", "spring", "static"):
+        abort(400)
+
+    # app_dir を確定
+    if kind == "spring":
+        app_dir = Path(f"{config.BASE_DIR_SPRING}/{_term_of(student_id)}/{student_id}/{app_name}")
+    elif kind == "static":
+        app_dir = Path(f"{config.BASE_DIR_STATIC}/{_term_of(student_id)}/{student_id}/{app_name}")
+    else:  # flask / streamlit
+        app_dir = Path(f"{config.BASE_DIR_FLASK}/{_term_of(student_id)}/{student_id}/{app_name}")
+
+    if not app_dir.exists():
+        abort(404)
+
+    # メモリ上でzip化
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for file_path in sorted(app_dir.rglob("*")):
+            if file_path.is_file():
+                zf.write(file_path, file_path.relative_to(app_dir))
+    buf.seek(0)
+
+    download_name = f"{student_id}_{app_name}.zip"
+    return send_file(
+        buf,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=download_name,
+    )
 
 
 if __name__ == "__main__":
