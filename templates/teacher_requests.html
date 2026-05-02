@@ -245,6 +245,10 @@
             <a href="{{ base }}/f/{{ r.term }}/{{ r.student_id }}/{{ r.app_name }}/" target="_blank">
               {{ base }}/f/{{ r.term }}/{{ r.student_id }}/{{ r.app_name }}/
             </a>
+            {% elif r.kind == 'streamlit' %}
+            <a href="{{ base }}/f/{{ r.term }}/{{ r.student_id }}/{{ r.app_name }}/" target="_blank">
+              {{ base }}/f/{{ r.term }}/{{ r.student_id }}/{{ r.app_name }}/
+            </a>
             {% elif r.kind == 'spring' %}
             <a href="{{ base }}/b/{{ r.term }}/{{ r.student_id }}/{{ r.app_name }}/" target="_blank">
               {{ base }}/b/{{ r.term }}/{{ r.student_id }}/{{ r.app_name }}/
