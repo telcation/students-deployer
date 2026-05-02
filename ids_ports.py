@@ -6,7 +6,7 @@ from typing import Literal
 import config
 
 # students_deployer.py から使うアプリ種別
-AppType = Literal["static", "flask", "spring"]
+AppType = Literal["static", "flask", "streamlit", "spring"]
 
 # === 運用ポリシー ===
 # STRICT_YYMM=1 → MM=01..12, NN=01..99 を強制（従来互換）
@@ -115,7 +115,7 @@ def auto_port(apptype: AppType, student_id: str) -> int:
     if apptype == "static":
         raise ValueError("static アプリにポートは不要です。auto_port は呼び出さないでください。")
 
-    if apptype not in {"flask", "spring"}:
+    if apptype not in {"flask", "streamlit", "spring"}:
         raise ValueError(f"不正なアプリ種別です: {apptype}")
 
     # student_id 妥当性チェック（STRICT/LOOSE は _parse_student_id に従う）
