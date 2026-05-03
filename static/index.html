@@ -4,427 +4,1104 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Telcation 学生サポート（提出・再デプロイ）</title>
-  <meta name="description" content="提出前チェック、再デプロイ手順、注意事項、ログの見方をまとめた学生向けトップページです。" />
+  <title>Telcation 学生サポート — ユーザーズマニュアル</title>
+  <meta name="description" content="提出前チェック、注意事項、再デプロイ手順、トラブル対応をまとめた学生向けユーザーズマニュアルです。" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <style>
+    /* =====================================================
+       CSS Variables
+    ===================================================== */
     :root {
-      --bg: #f6f7fb;
-      --card: #ffffff;
+      --bg: #f0f4f8;
+      --surface: #ffffff;
+      --surface2: #f8fafc;
+      --border: #dde3ec;
       --text: #0f172a;
-      --muted: #475569;
-      --line: #e2e8f0;
-      --blue: #2563eb;
-      --orange: #f97316;
-      --red: #ef4444;
-      --green: #16a34a;
-      --shadow: 0 8px 24px rgba(15, 23, 42, .08);
-      --radius: 16px;
+      --muted: #64748b;
+      --blue: #1d4ed8;
+      --blue-soft: rgba(29,78,216,.08);
+      --blue-border: rgba(29,78,216,.2);
+      --orange: #ea580c;
+      --orange-soft: rgba(234,88,12,.08);
+      --orange-border: rgba(234,88,12,.2);
+      --red: #dc2626;
+      --red-soft: rgba(220,38,38,.07);
+      --red-border: rgba(220,38,38,.2);
+      --green: #15803d;
+      --green-soft: rgba(21,128,61,.07);
+      --green-border: rgba(21,128,61,.2);
+      --purple: #6d28d9;
+      --purple-soft: rgba(109,40,217,.07);
+      --purple-border: rgba(109,40,217,.2);
+      --sidebar-w: 260px;
+      --header-h: 64px;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(15,23,42,.07);
+      --font: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      --mono: 'JetBrains Mono', 'Consolas', monospace;
     }
 
-    * {
-      box-sizing: border-box
-    }
-
+    /* =====================================================
+       Reset / Base
+    ===================================================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
     body {
-      margin: 0;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+      font-family: var(--font);
       color: var(--text);
-      background: linear-gradient(180deg, #ffffff 0%, var(--bg) 40%, var(--bg) 100%);
+      background: var(--bg);
+      line-height: 1.7;
     }
+    a { color: inherit; text-decoration: none; }
 
-    a {
-      color: inherit
+    /* =====================================================
+       Top Bar
+    ===================================================== */
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      height: var(--header-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 16px;
+      padding: 0 24px;
+      box-shadow: 0 1px 8px rgba(15,23,42,.06);
     }
-
-    .wrap {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 24px
-    }
-
-    header {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 22px 18px;
-    }
-
-    .title {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      color: var(--muted);
-      background: #fff;
-      font-size: 13px;
-    }
-
-    h1 {
-      margin: 6px 0 6px;
-      font-size: 22px
-    }
-
-    .sub {
-      margin: 0;
-      color: var(--muted);
-      line-height: 1.7
-    }
-
-    .alert {
-      margin-top: 14px;
-      padding: 12px 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(239, 68, 68, .25);
-      background: rgba(239, 68, 68, .06);
-    }
-
-    .alert b {
-      color: var(--red)
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 16px;
-      margin-top: 18px;
-    }
-
-    @media (min-width: 920px) {
-      .grid {
-        grid-template-columns: 1fr 1fr;
-      }
-    }
-
-    section {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 16px;
-    }
-
-    h2 {
-      margin: 2px 0 10px;
-      font-size: 18px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .hint {
-      color: var(--muted);
-      margin: 0 0 10px;
-      line-height: 1.7
-    }
-
-    .cards {
-      display: grid;
-      gap: 10px
-    }
-
-    .card {
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 12px;
-      background: #fff;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-    }
-
-    .card .left {
-      min-width: 0
-    }
-
-    .card .kicker {
-      font-size: 12px;
-      color: var(--muted);
-      margin: 0 0 4px
-    }
-
-    .card .name {
-      margin: 0;
-      font-weight: 700;
-      line-height: 1.35;
-      word-break: break-word;
-    }
-
-    .card .desc {
-      margin: 6px 0 0;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.55;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      border-radius: 12px;
-      border: 1px solid var(--line);
-      padding: 10px 12px;
-      white-space: nowrap;
-      font-weight: 700;
-      text-decoration: none;
-      background: #fff;
-    }
-
-    .btn.primary {
-      border-color: rgba(37, 99, 235, .25);
-      background: rgba(37, 99, 235, .06);
+    .topbar-logo {
+      font-size: 15px; font-weight: 700;
       color: var(--blue);
+      display: flex; align-items: center; gap: 8px;
+      white-space: nowrap;
     }
-
-    .btn.orange {
-      border-color: rgba(249, 115, 22, .25);
-      background: rgba(249, 115, 22, .08);
-      color: #9a3412;
+    .topbar-logo svg { flex-shrink: 0; }
+    .topbar-title {
+      font-size: 14px; color: var(--muted); font-weight: 400;
     }
-
-    .btn.red {
-      border-color: rgba(239, 68, 68, .25);
-      background: rgba(239, 68, 68, .07);
-      color: #991b1b;
+    .topbar-actions {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 10px;
     }
-
-    .btn.green {
-      border-color: rgba(22, 163, 74, .25);
-      background: rgba(22, 163, 74, .07);
-      color: #065f46;
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      border-radius: 10px; border: 1px solid var(--border);
+      padding: 8px 14px; font-size: 13px; font-weight: 600;
+      cursor: pointer; background: var(--surface);
+      white-space: nowrap; font-family: var(--font);
+      transition: box-shadow .15s, transform .1s;
     }
-
-    .mini {
-      font-size: 12px;
-      color: var(--muted);
-      margin: 12px 0 0;
-      line-height: 1.7
+    .btn:hover { box-shadow: 0 2px 10px rgba(15,23,42,.1); transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+    .btn.green { background: var(--green-soft); color: var(--green); border-color: var(--green-border); }
+    .btn.pdf {
+      background: linear-gradient(135deg, #1d4ed8, #4f46e5);
+      color: #fff; border: none;
+      padding: 9px 18px; font-size: 14px;
+      box-shadow: 0 4px 14px rgba(29,78,216,.3);
     }
+    .btn.pdf:hover { box-shadow: 0 6px 20px rgba(29,78,216,.4); transform: translateY(-2px); }
 
-    footer {
-      margin: 16px 0 8px;
-      color: var(--muted);
-      font-size: 12px;
-      text-align: center;
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: #fff;
-      border: 1px solid var(--line);
-      font-size: 12px;
-      color: var(--muted)
-    }
-
-    .toplink {
+    /* =====================================================
+       Layout
+    ===================================================== */
+    .layout {
       display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 12px
+      padding-top: var(--header-h);
+      min-height: 100vh;
     }
 
-    code.inline {
-      background: #f1f5f9;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 2px 6px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    /* =====================================================
+       Sidebar
+    ===================================================== */
+    .sidebar {
+      position: fixed;
+      top: var(--header-h); bottom: 0; left: 0;
+      width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 20px 0 32px;
+      z-index: 100;
+    }
+    .sidebar-section {
+      padding: 0 12px;
+      margin-bottom: 6px;
+    }
+    .sidebar-label {
+      font-size: 10px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--muted);
+      padding: 0 8px; margin-bottom: 4px; display: block;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 9px;
+      font-size: 13px; color: var(--text);
+      cursor: pointer; transition: background .12s, color .12s;
+    }
+    .nav-item:hover { background: var(--bg); }
+    .nav-item.active { background: var(--blue-soft); color: var(--blue); font-weight: 700; }
+    .nav-item .icon { width: 18px; flex-shrink: 0; text-align: center; font-size: 14px; }
+    .nav-divider { height: 1px; background: var(--border); margin: 10px 12px; }
+
+    /* =====================================================
+       Main Content
+    ===================================================== */
+    .main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      padding: 32px 28px 60px;
+      max-width: 900px;
+    }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 50%, #4338ca 100%);
+      border-radius: 20px;
+      padding: 32px 28px;
+      color: #fff;
+      margin-bottom: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Ccircle cx='30' cy='30' r='20'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
+    }
+    .hero-inner { position: relative; z-index: 1; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.2);
+      border-radius: 999px; padding: 4px 12px; font-size: 12px;
+      margin-bottom: 12px;
+    }
+    .hero h1 { font-size: 24px; font-weight: 700; line-height: 1.35; margin-bottom: 10px; }
+    .hero-sub { font-size: 14px; opacity: .85; line-height: 1.7; margin-bottom: 18px; }
+    .hero-alert {
+      background: rgba(254,202,202,.15); border: 1px solid rgba(254,202,202,.3);
+      border-radius: 12px; padding: 12px 16px; font-size: 13px; line-height: 1.7;
+    }
+    .hero-alert strong { color: #fca5a5; }
+    .hero-links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    .btn.hero-link {
+      background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.25);
+      color: #fff; font-size: 13px;
+    }
+    .btn.hero-link:hover { background: rgba(255,255,255,.25); }
+    .btn.hero-link.cta { background: #fff; color: var(--blue); border-color: #fff; }
+
+    /* Section headers */
+    .section-anchor { padding-top: 24px; }
+    .section-head {
+      display: flex; align-items: center; gap: 10px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 10px; margin-bottom: 18px;
+    }
+    .section-head h2 { font-size: 19px; font-weight: 700; }
+    .section-head .s-icon { font-size: 22px; }
+    .section-hint {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;
+      font-size: 13px; color: var(--muted); line-height: 1.7;
+    }
+
+    /* Content cards */
+    .content-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
+    }
+    .card-head {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      gap: 14px; margin-bottom: 10px;
+    }
+    .card-kicker {
+      font-size: 11px; font-weight: 700; letter-spacing: .05em;
+      text-transform: uppercase; margin-bottom: 4px;
+    }
+    .card-kicker.green { color: var(--green); }
+    .card-kicker.blue { color: var(--blue); }
+    .card-kicker.orange { color: var(--orange); }
+    .card-kicker.red { color: var(--red); }
+    .card-kicker.purple { color: var(--purple); }
+    .card-kicker.muted { color: var(--muted); }
+    .card-title { font-size: 15px; font-weight: 700; line-height: 1.4; }
+    .card-body { font-size: 13px; color: var(--muted); line-height: 1.7; }
+
+    /* Check list */
+    .checklist { list-style: none; margin-top: 10px; }
+    .checklist li {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 5px 0; font-size: 13px; border-bottom: 1px solid var(--border);
+    }
+    .checklist li:last-child { border-bottom: none; }
+    .checklist li::before { content: '□'; color: var(--muted); margin-top: 1px; flex-shrink: 0; }
+    .checklist li.important::before { content: '☐'; color: var(--red); font-weight: 700; }
+
+    /* Callout */
+    .callout {
+      border-radius: 10px; padding: 12px 16px;
+      font-size: 13px; line-height: 1.7;
+      display: flex; gap: 10px; align-items: flex-start;
+      margin-top: 10px;
+    }
+    .callout.warn { background: var(--orange-soft); border: 1px solid var(--orange-border); }
+    .callout.info { background: var(--blue-soft); border: 1px solid var(--blue-border); }
+    .callout.danger { background: var(--red-soft); border: 1px solid var(--red-border); }
+    .callout.ok { background: var(--green-soft); border: 1px solid var(--green-border); }
+    .callout-icon { flex-shrink: 0; font-size: 16px; margin-top: 1px; }
+
+    /* Steps */
+    .steps { counter-reset: step; margin-top: 10px; }
+    .step-item {
+      display: flex; gap: 14px; align-items: flex-start;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .step-item:last-child { border-bottom: none; }
+    .step-num {
+      width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+      background: var(--blue); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; margin-top: 1px;
+    }
+    .step-text { line-height: 1.65; }
+
+    /* Code inline */
+    code {
+      font-family: var(--mono);
       font-size: 12px;
-      color: #0f172a
+      background: #f1f5f9;
+      border: 1px solid #dde3ec;
+      border-radius: 6px;
+      padding: 2px 6px;
+      color: var(--text);
+    }
+
+    /* Path badge */
+    .path-badge {
+      display: inline-block;
+      font-family: var(--mono); font-size: 12px;
+      background: #1e293b; color: #94a3b8;
+      border-radius: 8px; padding: 6px 12px;
+      margin-top: 8px;
+    }
+    .path-badge .seg-sep { color: #475569; }
+    .path-badge .seg-var { color: #7dd3fc; }
+    .path-badge .seg-fixed { color: #e2e8f0; }
+
+    /* NG list */
+    .ng-list { margin-top: 10px; }
+    .ng-item {
+      background: var(--red-soft); border: 1px solid var(--red-border);
+      border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;
+      font-size: 13px; line-height: 1.65;
+    }
+    .ng-item strong { color: var(--red); }
+
+    /* Log reader */
+    .log-block {
+      background: #0f172a; border-radius: 10px; padding: 14px 16px;
+      font-family: var(--mono); font-size: 12px; line-height: 1.7;
+      margin-top: 8px; overflow-x: auto;
+    }
+    .log-err { color: #f87171; }
+    .log-ok  { color: #4ade80; }
+    .log-info { color: #7dd3fc; }
+    .log-muted { color: #475569; }
+
+    /* Footer */
+    footer {
+      margin-left: var(--sidebar-w);
+      padding: 20px 28px;
+      border-top: 1px solid var(--border);
+      font-size: 12px; color: var(--muted); text-align: center;
+    }
+
+    /* =====================================================
+       Print / PDF styles
+    ===================================================== */
+    @media print {
+      .topbar, .sidebar, .btn, .hero-links { display: none !important; }
+      .main { margin-left: 0 !important; padding: 0 !important; max-width: 100% !important; }
+      footer { margin-left: 0; }
+      body { background: #fff; }
+      .hero { background: #1d4ed8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .content-card { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
+      .section-anchor { page-break-before: auto; }
+      .log-block { background: #0f172a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+
+    /* =====================================================
+       Responsive
+    ===================================================== */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 16px; }
+      footer { margin-left: 0; }
+      .hero h1 { font-size: 19px; }
     }
   </style>
 </head>
 
 <body>
-  <div class="wrap">
-    <header>
-      <div class="title">
-        <span class="badge">Telcation / 学生サポート</span>
-        <span class="badge">提出・再デプロイ</span>
-        <span class="badge">更新：<span id="today"></span></span>
-      </div>
 
-      <h1>提出前チェック・注意事項・手順書（学生向け）</h1>
-      <p class="sub">
-        このページは、<b>提出／再デプロイで失敗しないための資料</b>をまとめたものです。<br />
-        迷ったら、上から順番に読んでください（特に「提出前チェック」と「NG例」）。
-      </p>
-
-      <div class="alert">
-        <b>重要：</b>提出前チェック未確認の提出は、デプロイ失敗になりやすいです。<br />
-        「ローカルで動く」＝「サーバーで動く」ではありません（サーバーは <code class="inline">/種別/学期/学生番号/アプリ名/</code> の深い場所で動きます）。
-      </div>
-
-      <div class="toplink">
-        <a class="btn primary" href="/students/">
-          ▶ 学生用デプロイアプリ ログイン
-        </a>
-        <a class="btn green" href="/community/">
-          💬 学生コミュニティ ログイン
-        </a>
-        <div style="flex-basis:100%; height:0;"></div>
-        <span class="pill">デプロイで困ったら：ログを最後まで読む → そのまま講師に貼る</span>
-      </div>
-
-      <div class="mini">
-        <b>ボタンの色の意味：</b>
-        <span class="pill">青＝操作（ログイン・再デプロイ）</span>
-        <span class="pill">緑＝最優先で読む</span>
-        <span class="pill">オレンジ＝重要な注意</span>
-        <span class="pill">赤＝NG・失敗例</span>
-        <span class="pill">灰色＝通常資料</span>
-      </div>
-
-    </header>
-
-    <div class="grid">
-
-      <section>
-        <h2>✅ 提出前チェック（必ず確認）</h2>
-        <p class="hint">提出直前の最終確認。チェック漏れがあると、ほぼ確実に失敗します。</p>
-
-        <div class="cards">
-          <div class="card">
-            <div class="left">
-              <p class="kicker">全員必須（最優先）</p>
-              <p class="name">提出前チェックリスト（総合）</p>
-              <p class="desc">まず最初にこれ。言語・バージョン・提出物の基本ルール。</p>
-            </div>
-            <a class="btn green" href="/docs/提出前チェックリスト_学生向け.pdf">開く</a>
-          </div>
-
-          <div class="card">
-            <div class="left">
-              <p class="kicker">Python</p>
-              <p class="name">Pythonアプリ提出用 zip 作成手順（Windows / VS Code）</p>
-              <p class="desc">zip構成・requirements.txt・venv除外など。</p>
-            </div>
-            <a class="btn" href="/docs/Python_提出用_zip作成手順_学生向け_1枚.pdf">開く</a>
-          </div>
-
-          <div class="card">
-            <div class="left">
-              <p class="kicker">Java（Spring Boot）</p>
-              <p class="name">Spring Boot 提出用 jar 作成手順（Windows / IntelliJ）</p>
-              <p class="desc">bootJar / package、jar起動確認、ファイル名ルール。</p>
-            </div>
-            <a class="btn" href="/docs/Java_SpringBoot_jar作成手順_学生向け_1枚.pdf">開く</a>
-          </div>
-
-          <div class="card">
-            <div class="left">
-              <p class="kicker">Java（Spring Boot）</p>
-              <p class="name">Java（Spring Boot）提出前チェックリスト</p>
-              <p class="desc">release設定、jarの場所、絶対パスの最終確認。</p>
-            </div>
-            <a class="btn" href="/docs/Java_提出前チェックリスト_学生向け_1枚.pdf">開く</a>
-          </div>
-
-          <div class="card">
-            <div class="left">
-              <p class="kicker">Python（Flask + DB）</p>
-              <p class="name">Flask（DB使用）アプリ 提出前チェックリスト</p>
-              <p class="desc">db.create_all() の場所、DBパス固定、url_for、初回500対策。</p>
-            </div>
-            <a class="btn" href="/docs/Flask_DB_提出前チェックリスト_学生配布用.pdf">開く</a>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <h2>⚠ 注意事項・よくあるミス（必読）</h2>
-        <p class="hint">「動かない」「404」「Internal Server Error」の原因になりやすいポイント。</p>
-
-        <div class="cards">
-          <div class="card">
-            <div class="left">
-              <p class="kicker">超重要</p>
-              <p class="name">リンク指定の注意（相対パス問題）</p>
-              <p class="desc">Spring BootはThymeleafの <code class="inline">th:href</code> / <code class="inline">th:action</code> を使う。</p>
-            </div>
-            <a class="btn orange" href="/docs/SpringBoot_相対パスについて.pdf">開く</a>
-          </div>
-
-          <div class="card">
-            <div class="left">
-              <p class="kicker">注意喚起</p>
-              <p class="name">よくあるNG例（venv提出、requirements無し、ビルド成果物など）</p>
-              <p class="desc">同じ失敗をしないための「地雷集」。提出前に必ず確認。</p>
-            </div>
-            <a class="btn red" href="/docs/NG例_注意喚起_学生向け.pdf">開く</a>
-          </div>
-
-          <div class="card">
-            <div class="left">
-              <p class="kicker">ルール</p>
-              <p class="name">Python / Java バージョン申請ルール</p>
-              <p class="desc">申請したバージョンと違うと、デプロイ失敗します。</p>
-            </div>
-            <a class="btn" href="/docs/Python_Java_バージョン申請ルール_学生向け.pdf">開く</a>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <h2>🔁 再デプロイ手順</h2>
-        <p class="hint">講師から指示があったときのみ実施。勝手に何度も再デプロイしない。</p>
-
-        <div class="cards">
-          <div class="card">
-            <div class="left">
-              <p class="kicker">手順書</p>
-              <p class="name">学生向け 再デプロイ手順書</p>
-              <p class="desc">学生番号 → アプリ選択 → ZIPアップロード → 再デプロイ。</p>
-            </div>
-            <a class="btn primary" href="/docs/学生向け_再デプロイ手順書.pdf">開く</a>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <h2>🧪 トラブル対応（ログの見方）</h2>
-        <p class="hint">失敗したときは、ログに「理由」が書かれています。最後まで読む。</p>
-
-        <div class="cards">
-          <div class="card">
-            <div class="left">
-              <p class="kicker">まずこれ</p>
-              <p class="name">デプロイ失敗ログの読み方（学生向け）</p>
-              <p class="desc">ModuleNotFoundError / UnsupportedClassVersionError などの見分け方。</p>
-            </div>
-            <a class="btn" href="/docs/デプロイ失敗ログの読み方_学生向け.pdf">開く</a>
-          </div>
-        </div>
-      </section>
+  <!-- ============ TOP BAR ============ -->
+  <div class="topbar">
+    <div class="topbar-logo">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="22" height="22" rx="6" fill="#1d4ed8"/>
+        <path d="M6 7h10M6 11h7M6 15h10" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      Telcation
     </div>
-
-    <footer>
-      © Telcation / Student Support &amp; Deploy Guide
-    </footer>
+    <span class="topbar-title">学生サポート — ユーザーズマニュアル</span>
+    <div class="topbar-actions">
+      <a class="btn primary" href="/students/">▶ デプロイアプリ</a>
+      <a class="btn green" href="/community/">💬 コミュニティ</a>
+      <button class="btn pdf" onclick="window.print()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 16V4M8 12l4 4 4-4"/><rect x="3" y="17" width="18" height="4" rx="1"/>
+        </svg>
+        PDFでダウンロード
+      </button>
+    </div>
   </div>
 
-  <script>
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    document.getElementById('today').textContent = `${yyyy}-${mm}-${dd}`;
-  </script>
-</body>
+  <div class="layout">
 
+    <!-- ============ SIDEBAR ============ -->
+    <nav class="sidebar" aria-label="目次">
+      <div class="sidebar-section">
+        <span class="sidebar-label">目次</span>
+
+        <a class="nav-item" href="#top">
+          <span class="icon">🏠</span> トップ
+        </a>
+      </div>
+
+      <div class="nav-divider"></div>
+
+      <div class="sidebar-section">
+        <span class="sidebar-label">提出前チェック</span>
+        <a class="nav-item" href="#checklist-common">
+          <span class="icon">✅</span> 全員必須チェック
+        </a>
+        <a class="nav-item" href="#checklist-python">
+          <span class="icon">🐍</span> Python zip 作成
+        </a>
+        <a class="nav-item" href="#checklist-java">
+          <span class="icon">☕</span> Spring Boot jar 作成
+        </a>
+        <a class="nav-item" href="#checklist-flask-db">
+          <span class="icon">🗄</span> Flask+DB チェック
+        </a>
+        <a class="nav-item" href="#checklist-streamlit">
+          <span class="icon">📊</span> Streamlit チェック
+        </a>
+      </div>
+
+      <div class="nav-divider"></div>
+
+      <div class="sidebar-section">
+        <span class="sidebar-label">注意事項</span>
+        <a class="nav-item" href="#caution-path">
+          <span class="icon">⚠</span> 相対パス問題
+        </a>
+        <a class="nav-item" href="#caution-ng">
+          <span class="icon">🚫</span> よくあるNG例
+        </a>
+        <a class="nav-item" href="#caution-version">
+          <span class="icon">📌</span> バージョン申請
+        </a>
+      </div>
+
+      <div class="nav-divider"></div>
+
+      <div class="sidebar-section">
+        <span class="sidebar-label">手順書</span>
+        <a class="nav-item" href="#redeploy">
+          <span class="icon">🔁</span> 再デプロイ手順
+        </a>
+      </div>
+
+      <div class="nav-divider"></div>
+
+      <div class="sidebar-section">
+        <span class="sidebar-label">トラブル対応</span>
+        <a class="nav-item" href="#log-how-to-read">
+          <span class="icon">🧪</span> ログの読み方
+        </a>
+        <a class="nav-item" href="#log-errors">
+          <span class="icon">🔍</span> よくあるエラー
+        </a>
+      </div>
+    </nav>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+
+      <!-- HERO -->
+      <div class="hero" id="top">
+        <div class="hero-inner">
+          <div class="hero-badge">📖 Telcation / 学生サポート — ユーザーズマニュアル</div>
+          <h1>提出・再デプロイ 完全ガイド</h1>
+          <p class="hero-sub">
+            このページは、提出前の確認から再デプロイ・トラブル対応まで、<br />
+            学生が必要なすべての情報を一か所にまとめたユーザーズマニュアルです。<br />
+            <strong>迷ったら、目次から必要な項目を開いてください。</strong>
+          </p>
+          <div class="hero-alert">
+            <strong>⚠ 重要：</strong>「ローカルで動く」＝「サーバーで動く」ではありません。
+            サーバーは <code style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.2);color:#fff;">/種別/学期/学生番号/アプリ名/</code>
+            の深いパスで動きます。提出前チェックを必ず確認してください。
+          </div>
+          <div class="hero-links">
+            <a class="btn hero-link cta" href="/students/">▶ 学生用デプロイアプリ ログイン</a>
+            <a class="btn hero-link" href="/community/">💬 学生コミュニティ</a>
+            <button class="btn hero-link" onclick="window.print()">📄 PDFでダウンロード（ユーザーズマニュアル）</button>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ================================================
+           1. 提出前チェック（全員必須）
+      ================================================ -->
+      <div class="section-anchor" id="checklist-common">
+        <div class="section-head">
+          <span class="s-icon">✅</span>
+          <h2>提出前チェックリスト（全員必須）</h2>
+        </div>
+
+        <div class="section-hint">
+          提出直前の最終確認です。チェック漏れがあると、ほぼ確実に失敗します。<strong>必ず上から順番に確認してください。</strong>
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker green">全員必須（最優先）</div>
+          <div class="card-title">提出前チェックリスト（総合）</div>
+          <ul class="checklist" style="margin-top:12px">
+            <li class="important">提出物のファイル名が指定のルールに沿っている</li>
+            <li class="important">言語・バージョン申請と、実際に使用したバージョンが一致している</li>
+            <li class="important">ローカルで <strong>最終動作確認</strong> を完了している</li>
+            <li>不要なファイル（<code>venv/</code>、<code>node_modules/</code>、<code>target/</code> など）が含まれていない</li>
+            <li>提出するファイルは最新のものである（古いzipを提出していない）</li>
+            <li>アプリ名に記号・スペースが含まれていない（英数字・アンダースコアのみ）</li>
+          </ul>
+          <div class="callout info" style="margin-top:14px">
+            <span class="callout-icon">💡</span>
+            <span>提出後は、しばらく待ってからデプロイ結果のログを確認しましょう。エラーがある場合はログに理由が書かれています。</span>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ================================================
+           1b. Python zip作成
+      ================================================ -->
+      <div class="section-anchor" id="checklist-python">
+        <div class="section-head">
+          <span class="s-icon">🐍</span>
+          <h2>Python アプリ提出用 zip 作成手順（Windows / VS Code）</h2>
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker blue">Python</div>
+          <div class="card-title">zip 構成・requirements.txt・venv 除外</div>
+          <p class="card-body" style="margin-top:8px">
+            zip ファイルの内部構成・<code>requirements.txt</code> の書き方・venv の除外方法を確認します。
+          </p>
+
+          <div class="steps" style="margin-top:14px">
+            <div class="step-item">
+              <div class="step-num">1</div>
+              <div class="step-text">
+                <strong>requirements.txt を作成する</strong><br />
+                VS Code のターミナルで仮想環境を有効にした状態で実行：<br />
+                <code>pip freeze &gt; requirements.txt</code><br />
+                ファイルを開いて内容を確認する（空の場合はライブラリを追記）。
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">2</div>
+              <div class="step-text">
+                <strong>venv フォルダを除外する</strong><br />
+                <code>venv/</code>、<code>.venv/</code> フォルダはzipに含めない。
+                エクスプローラーで右クリック圧縮するときは、プロジェクトフォルダ内から
+                <code>venv</code> を除いた状態で選択してzipを作成する。
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">3</div>
+              <div class="step-text">
+                <strong>zip の内部構成を確認する</strong><br />
+                zip を開いたとき、<strong>直下に <code>app.py</code>（またはメインファイル）と <code>requirements.txt</code> が見えている</strong>
+                こと。フォルダが二重になっていないか確認する。
+                <div class="callout warn" style="margin-top:8px">
+                  <span class="callout-icon">⚠</span>
+                  <span>NG例：<code>myapp.zip</code> を開いたら <code>myapp/</code> フォルダが入っていて、その中に <code>app.py</code> がある → <strong>二重構造</strong>。要修正。</span>
+                </div>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">4</div>
+              <div class="step-text">
+                <strong>ファイル名のルールを確認する</strong><br />
+                ファイル名は英数字・アンダースコアのみ。日本語・スペース・記号は使わない。<br />
+                例：<code>myapp_flask.zip</code> ✅　　<code>マイアプリ 最終版.zip</code> ❌
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ================================================
+           1c. Spring Boot jar作成
+      ================================================ -->
+      <div class="section-anchor" id="checklist-java">
+        <div class="section-head">
+          <span class="s-icon">☕</span>
+          <h2>Spring Boot 提出用 jar 作成手順（Windows / IntelliJ）</h2>
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker blue">Java（Spring Boot）</div>
+          <div class="card-title">bootJar / package、jar起動確認、ファイル名ルール</div>
+          <p class="card-body" style="margin-top:8px">
+            IntelliJ IDEA で実行可能 jar（bootJar）を作成し、ローカル起動を確認してから提出します。
+          </p>
+
+          <div class="steps" style="margin-top:14px">
+            <div class="step-item">
+              <div class="step-num">1</div>
+              <div class="step-text">
+                <strong>build.gradle / pom.xml を確認する</strong><br />
+                Gradle の場合：<code>bootJar</code> タスクが有効になっているか確認。<br />
+                Maven の場合：<code>spring-boot-maven-plugin</code> が <code>pom.xml</code> に含まれているか確認。
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">2</div>
+              <div class="step-text">
+                <strong>jar をビルドする</strong><br />
+                Gradle：右ペインの「Gradle」→「Tasks」→「build」→<code>bootJar</code> をダブルクリック<br />
+                Maven：右ペインの「Maven」→「Lifecycle」→<code>package</code> をダブルクリック<br />
+                ビルド後、<code>build/libs/</code>（Gradle）または <code>target/</code>（Maven）に jar が生成される。
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">3</div>
+              <div class="step-text">
+                <strong>ローカルでの jar 起動確認</strong><br />
+                ターミナルで以下を実行し、ブラウザで動作を確認する：<br />
+                <code>java -jar build/libs/アプリ名-0.0.1-SNAPSHOT.jar</code>
+                <div class="callout warn" style="margin-top:8px">
+                  <span class="callout-icon">⚠</span>
+                  <span><strong>絶対パスを使っていないか確認。</strong>
+                  <code>new File("C:/Users/...")</code> や <code>"/home/user/..."</code> はサーバーで動きません。</span>
+                </div>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">4</div>
+              <div class="step-text">
+                <strong>ファイル名ルールを確認して提出</strong><br />
+                jar ファイルを提出。ファイル名は英数字・アンダースコアのみ。<br />
+                バージョン申請と一致した Java バージョンでビルドしたことを確認する。
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker orange">Java 最終確認</div>
+          <div class="card-title">Spring Boot 提出前チェックリスト</div>
+          <ul class="checklist" style="margin-top:10px">
+            <li class="important"><code>application.properties</code> に <code>server.port</code> の <strong>ハードコードがない</strong>（サーバー側が指定）</li>
+            <li class="important">ファイルパスに絶対パス（<code>C:\</code> や <code>/home/</code>）が使われていない</li>
+            <li class="important">Thymeleaf テンプレートに <code>th:href</code> / <code>th:action</code> / <code>th:src</code> を使っている</li>
+            <li><code>build/libs/</code>（Gradle）または <code>target/</code>（Maven）内の jar を提出している</li>
+            <li>ローカルで <code>java -jar</code> 実行後、ブラウザで動作確認済み</li>
+            <li>バージョン申請（Java 17 / 21 / 25）と、ビルドに使った JDK が一致している</li>
+          </ul>
+        </div>
+      </div>
+
+
+      <!-- ================================================
+           1d. Flask+DB
+      ================================================ -->
+      <div class="section-anchor" id="checklist-flask-db">
+        <div class="section-head">
+          <span class="s-icon">🗄</span>
+          <h2>Flask（DB使用）アプリ 提出前チェックリスト</h2>
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker purple">Python（Flask + DB）</div>
+          <div class="card-title">db.create_all() の場所・DBパス固定・url_for・初回500対策</div>
+          <ul class="checklist" style="margin-top:12px">
+            <li class="important"><code>db.create_all()</code> がアプリ起動時に必ず実行されるようになっている</li>
+            <li class="important">DBのパスが <strong>絶対パス固定でなく</strong>、起動ディレクトリ基準（<code>os.path.dirname(__file__)</code> など）になっている</li>
+            <li class="important">テンプレート内のリンクが <code>url_for()</code> を使っている（ハードコードのURLでない）</li>
+            <li>初回アクセス時に DB が存在しなくても 500 にならないよう、エラーハンドリングがある</li>
+            <li><code>requirements.txt</code> に Flask、SQLAlchemy 等すべての依存が記載されている</li>
+            <li><code>debug=True</code> が本番（提出用）コードに残っていない</li>
+          </ul>
+          <div class="callout danger" style="margin-top:14px">
+            <span class="callout-icon">🚨</span>
+            <span><strong>DBファイルのパスが絶対パスになっていると、サーバー環境で起動に失敗します。</strong>
+            <code>SQLALCHEMY_DATABASE_URI = 'sqlite:////home/user/data.db'</code> のような記述は要修正。</span>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ================================================
+           1e. Streamlit
+      ================================================ -->
+      <div class="section-anchor" id="checklist-streamlit">
+        <div class="section-head">
+          <span class="s-icon">📊</span>
+          <h2>Streamlit アプリ 提出前チェックリスト</h2>
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker purple">Python（Streamlit）</div>
+          <div class="card-title">Streamlit 固有のルールと注意点</div>
+          <p class="card-body" style="margin-top:8px">
+            Streamlit は Flask と異なる起動方式のため、<strong>専用のルール</strong>があります。
+            Flask のチェックリストと合わせて確認してください。
+          </p>
+
+          <ul class="checklist" style="margin-top:12px">
+            <li class="important">提出ファイルは <strong>必ず zip 形式</strong>（単独の .py ファイルは非対応）</li>
+            <li class="important">メインファイル名は <strong><code>app.py</code> 固定</strong>（他のファイル名は起動されない）</li>
+            <li class="important"><code>requirements.txt</code> に <code>streamlit</code> 以外の依存ライブラリもすべて記載されている<br>
+              <span style="font-size:12px;color:var(--muted)">※ streamlit 本体はサーバーが自動インストールするが、他のライブラリは requirements.txt が必要</span>
+            </li>
+            <li>zip の直下に <code>app.py</code> と <code>requirements.txt</code> が見えている（二重フォルダになっていない）</li>
+            <li>ページ内リンク・画像パスを <strong>絶対パスでハードコードしていない</strong></li>
+            <li><code>st.set_page_config()</code> を使う場合、スクリプトの <strong>最初に呼んでいる</strong></li>
+          </ul>
+
+          <div class="callout warn" style="margin-top:14px">
+            <span class="callout-icon">⚠</span>
+            <div>
+              <strong>URLパス（baseUrlPath）について</strong><br />
+              Streamlit アプリは以下のURLパスで公開されます：<br />
+              <div class="path-badge" style="margin-top:6px">
+                <span class="seg-fixed">/f/</span><span class="seg-var">学期</span><span class="seg-sep">/</span><span class="seg-var">学生番号</span><span class="seg-sep">/</span><span class="seg-var">アプリ名</span><span class="seg-sep">/</span>
+              </div>
+              <p style="font-size:12px;color:var(--muted);margin-top:8px">
+                サーバーが <code>--server.baseUrlPath</code> を自動設定するため、学生側での設定は不要です。<br />
+                ただし、アプリ内で <code>st.page_link()</code> などを使う場合はパスに注意してください。
+              </p>
+            </div>
+          </div>
+
+          <div class="callout danger" style="margin-top:10px">
+            <span class="callout-icon">🚨</span>
+            <span>
+              <strong>単ファイル（.py）のアップロードは非対応です。</strong>
+              必ず zip にまとめてから提出してください。<br />
+              zip の中に <code>app.py</code> が直接入っている構造が正解です。
+            </span>
+          </div>
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker purple">Streamlit zip 構成例</div>
+          <div class="card-title">正しい zip 構成</div>
+          <div class="log-block" style="margin-top:10px">
+<span class="log-ok">myapp.zip</span>
+<span class="log-ok">├── app.py          ← メインファイル（名前は必ず app.py）</span>
+<span class="log-ok">├── requirements.txt</span>
+<span class="log-info">├── pages/          ← マルチページの場合（任意）</span>
+<span class="log-info">│   └── page2.py</span>
+<span class="log-info">└── assets/         ← 画像など静的ファイル（任意）</span>
+          </div>
+          <div class="log-block" style="margin-top:8px">
+<span class="log-err">❌ NG：myapp.zip → myapp/ → app.py  （二重フォルダ）</span>
+<span class="log-err">❌ NG：myapp.zip → main.py           （ファイル名が app.py でない）</span>
+<span class="log-err">❌ NG：app.py を直接アップロード     （zip にしていない）</span>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ================================================
+           2. 注意事項 — 相対パス
+      ================================================ -->
+      <div class="section-anchor" id="caution-path">
+        <div class="section-head">
+          <span class="s-icon">⚠</span>
+          <h2>注意事項：リンク指定の注意（相対パス問題）</h2>
+        </div>
+
+        <div class="section-hint">
+          サーバーはアプリを <strong>深いURLパス</strong> で公開します。ローカルのルートパスと異なるため、相対パスのリンクが壊れやすいです。
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker orange">超重要（Spring Boot）</div>
+          <div class="card-title">Thymeleaf の th:href / th:action / th:src を使う</div>
+          <p class="card-body" style="margin-top:8px">
+            Spring Boot + Thymeleaf の場合、リンクはすべて Thymeleaf の属性で指定してください。
+          </p>
+
+          <div style="margin-top:14px">
+            <p style="font-size:13px; font-weight:700; color:var(--red); margin-bottom:6px">❌ NG例（相対パスが壊れる）</p>
+            <div class="log-block">
+<span class="log-err">&lt;a href="/home"&gt;トップへ&lt;/a&gt;</span>
+<span class="log-err">&lt;form action="/submit"&gt;</span>
+<span class="log-err">&lt;img src="/static/logo.png"&gt;</span>
+            </div>
+
+            <p style="font-size:13px; font-weight:700; color:var(--green); margin-top:12px; margin-bottom:6px">✅ OK例（Thymeleaf を使う）</p>
+            <div class="log-block">
+<span class="log-ok">&lt;a th:href="@{/home}"&gt;トップへ&lt;/a&gt;</span>
+<span class="log-ok">&lt;form th:action="@{/submit}"&gt;</span>
+<span class="log-ok">&lt;img th:src="@{/static/logo.png}"&gt;</span>
+            </div>
+          </div>
+
+          <div style="margin-top:14px">
+            <p style="font-size:13px; color:var(--muted);">
+              サーバー上のURLパス構造：
+            </p>
+            <div class="path-badge">
+              <span class="seg-fixed">/</span><span class="seg-var">種別</span><span class="seg-sep">/</span><span class="seg-var">学期</span><span class="seg-sep">/</span><span class="seg-var">学生番号</span><span class="seg-sep">/</span><span class="seg-var">アプリ名</span><span class="seg-sep">/</span>
+            </div>
+            <p style="font-size:12px; color:var(--muted); margin-top:8px;">
+              例：<code>/flask/2601/26010001/myapp/</code> のような深いパスになります。<br />
+              <code>href="/home"</code> は <code>https://telcation.f5.si/home</code> を指してしまい、ルートに飛びます。
+            </p>
+          </div>
+
+          <div class="callout info" style="margin-top:14px">
+            <span class="callout-icon">💡</span>
+            <span><strong>Flask の場合</strong>は <code>url_for('ルート名')</code>、<strong>静的ファイルの場合</strong>は <code>url_for('static', filename='...')</code> を使ってください。</span>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ================================================
+           2b. NG例
+      ================================================ -->
+      <div class="section-anchor" id="caution-ng">
+        <div class="section-head">
+          <span class="s-icon">🚫</span>
+          <h2>よくあるNG例（失敗例・地雷集）</h2>
+        </div>
+
+        <div class="section-hint">
+          過去に多くの学生が引っかかった失敗パターンです。提出前に必ず確認してください。
+        </div>
+
+        <div class="ng-list">
+          <div class="ng-item">
+            <strong>NG①：venv フォルダごと提出している</strong><br />
+            <code>venv/</code> は数百MBあり、アップロードに失敗するか、デプロイが壊れます。
+            必ず除外してから zip を作成してください。
+          </div>
+          <div class="ng-item">
+            <strong>NG②：requirements.txt がない、または空</strong><br />
+            サーバーはライブラリをインストールできず、<code>ModuleNotFoundError</code> になります。
+            <code>pip freeze &gt; requirements.txt</code> で生成し、中身を確認してください。
+          </div>
+          <div class="ng-item">
+            <strong>NG③：ビルド成果物（target/, build/classes/ など）を含めた zip を提出している</strong><br />
+            Java の場合、提出するのは jar ファイルのみ。ソース一式を zip にする場合は <code>target/</code> を除外。
+          </div>
+          <div class="ng-item">
+            <strong>NG④：申請バージョンと実際のバージョンが違う</strong><br />
+            Python 3.12 で申請したのに 3.13 で開発した、など。<code>UnsupportedClassVersionError</code> の原因になります。
+          </div>
+          <div class="ng-item">
+            <strong>NG⑤：絶対パスのハードコード</strong><br />
+            <code>C:\Users\YamadaTaro\...</code> はサーバーに存在しません。<code>os.path.dirname(__file__)</code> や <code>Path(__file__).parent</code> で相対パスを使ってください。
+          </div>
+          <div class="ng-item">
+            <strong>NG⑥：zip が二重フォルダ構造になっている</strong><br />
+            <code>myapp.zip</code> → <code>myapp/</code> → <code>app.py</code> の構造は NG。
+            <code>myapp.zip</code> → <code>app.py</code> （直下にファイルが見える）が正しい構造です。
+          </div>
+          <div class="ng-item">
+            <strong>NG⑦：Streamlit で .py ファイルを直接アップロードしている</strong><br />
+            Streamlit は zip 形式のみ対応です。<code>app.py</code> を直接アップロードしてもデプロイできません。
+            必ず zip にまとめて提出してください。
+          </div>
+          <div class="ng-item">
+            <strong>NG⑧：Streamlit のメインファイル名が <code>app.py</code> でない</strong><br />
+            サーバーは <code>app.py</code> を固定で起動します。<code>main.py</code>・<code>streamlit_app.py</code> など別名のファイルは起動されません。
+          </div>
+          <div class="ng-item">
+            <strong>NG⑨：講師の指示なしで何度も再デプロイする</strong><br />
+            サーバーに負荷がかかります。再デプロイは講師から指示があった場合のみ実施してください。
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ================================================
+           2c. バージョン申請
+      ================================================ -->
+      <div class="section-anchor" id="caution-version">
+        <div class="section-head">
+          <span class="s-icon">📌</span>
+          <h2>Python / Java バージョン申請ルール</h2>
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker muted">ルール</div>
+          <div class="card-title">申請バージョンと開発バージョンは必ず一致させる</div>
+          <p class="card-body" style="margin-top:8px">
+            デプロイシステムは申請されたバージョンを使用してアプリを起動します。
+            実際に開発したバージョンと異なると、起動に失敗します。
+          </p>
+
+          <div style="margin-top:14px">
+            <p style="font-size:13px; font-weight:700; margin-bottom:8px">対応バージョン一覧</p>
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+              <thead>
+                <tr style="background:var(--bg);">
+                  <th style="text-align:left; padding:8px 10px; border:1px solid var(--border);">言語</th>
+                  <th style="text-align:left; padding:8px 10px; border:1px solid var(--border);">対応バージョン</th>
+                  <th style="text-align:left; padding:8px 10px; border:1px solid var(--border);">確認方法</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="padding:8px 10px; border:1px solid var(--border);">Python</td>
+                  <td style="padding:8px 10px; border:1px solid var(--border);"><code>3.12</code>　<code>3.13</code>　<code>3.14</code></td>
+                  <td style="padding:8px 10px; border:1px solid var(--border);"><code>python --version</code></td>
+                </tr>
+                <tr style="background:var(--bg);">
+                  <td style="padding:8px 10px; border:1px solid var(--border);">Java</td>
+                  <td style="padding:8px 10px; border:1px solid var(--border);"><code>17</code>　<code>21</code>　<code>25</code></td>
+                  <td style="padding:8px 10px; border:1px solid var(--border);"><code>java --version</code></td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 10px; border:1px solid var(--border);">ビルドツール</td>
+                  <td style="padding:8px 10px; border:1px solid var(--border);"><code>gradle</code>　<code>maven</code></td>
+                  <td style="padding:8px 10px; border:1px solid var(--border);">build.gradle / pom.xml で確認</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout danger" style="margin-top:14px">
+            <span class="callout-icon">🚨</span>
+            <span>申請と異なるバージョンでビルドした場合、<strong><code>UnsupportedClassVersionError</code>（Java）</strong> や <strong>構文エラー（Python）</strong> でデプロイ失敗します。</span>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ================================================
+           3. 再デプロイ手順
+      ================================================ -->
+      <div class="section-anchor" id="redeploy">
+        <div class="section-head">
+          <span class="s-icon">🔁</span>
+          <h2>再デプロイ手順</h2>
+        </div>
+
+        <div class="section-hint">
+          <strong>講師から指示があったときのみ実施してください。</strong>勝手に何度も再デプロイしないでください。
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker blue">手順書</div>
+          <div class="card-title">学生向け 再デプロイ手順書</div>
+          <p class="card-body" style="margin-top:8px">
+            学生番号でログイン → アプリを選択 → 修正したZIP/jarをアップロード → 再デプロイ実行
+          </p>
+
+          <div class="steps" style="margin-top:14px">
+            <div class="step-item">
+              <div class="step-num">1</div>
+              <div class="step-text">
+                <strong>デプロイアプリにログインする</strong><br />
+                <a href="/students/" style="color:var(--blue)">https://telcation.f5.si/students/</a> を開く。<br />
+                学生番号を入力してログイン。
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">2</div>
+              <div class="step-text">
+                <strong>対象アプリを選択する</strong><br />
+                ダッシュボードに自分のアプリ一覧が表示されます。<br />
+                再デプロイしたいアプリの「再デプロイ」ボタンを押す。
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">3</div>
+              <div class="step-text">
+                <strong>修正済みのファイルをアップロードする</strong><br />
+                Python の場合：修正済みの <code>.zip</code> を選択してアップロード。<br />
+                Java の場合：再ビルドした <code>.jar</code> を選択してアップロード。<br />
+                <span style="color:var(--muted)">※ ファイルサイズ上限：200MB</span>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">4</div>
+              <div class="step-text">
+                <strong>デプロイ結果を確認する</strong><br />
+                アップロード後、自動的にデプロイが開始されます。<br />
+                しばらく待ってからログを確認してください。エラーが出ている場合は内容を読んで対応し、<strong>解決できない場合はログをそのまま講師に貼り付けてください。</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout warn" style="margin-top:14px">
+            <span class="callout-icon">⚠</span>
+            <span>再デプロイは <strong>最大2〜3分</strong> かかることがあります。ページを閉じずに待ってください。</span>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ================================================
+           4. ログの読み方
+      ================================================ -->
+      <div class="section-anchor" id="log-how-to-read">
+        <div class="section-head">
+          <span class="s-icon">🧪</span>
+          <h2>トラブル対応：ログの読み方</h2>
+        </div>
+
+        <div class="section-hint">
+          デプロイに失敗したとき、ログに <strong>原因が書かれています。</strong> 最後まで読んでください。途中でやめない。
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker muted">基本</div>
+          <div class="card-title">ログを読む3つのポイント</div>
+
+          <div class="steps" style="margin-top:12px">
+            <div class="step-item">
+              <div class="step-num">1</div>
+              <div class="step-text">
+                <strong>最後まで読む</strong><br />
+                エラーは最後の方に出ることが多いです。途中で止まらず最後まで確認。
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">2</div>
+              <div class="step-text">
+                <strong>ERROR / FAILED / Exception を探す</strong><br />
+                これらのキーワードが含まれる行が原因です。
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">3</div>
+              <div class="step-text">
+                <strong>解決できない場合はログをそのまま講師に貼る</strong><br />
+                「エラーになりました」だけでは原因が分かりません。ログ全文をコピーして貼り付けてください。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ================================================
+           4b. よくあるエラー
+      ================================================ -->
+      <div class="section-anchor" id="log-errors">
+        <div class="section-head">
+          <span class="s-icon">🔍</span>
+          <h2>よくあるエラーと対処法</h2>
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker red">Python エラー</div>
+          <div class="card-title">ModuleNotFoundError: No module named 'xxx'</div>
+          <p class="card-body" style="margin-top:6px">ライブラリのインストールに失敗しています。</p>
+          <div class="log-block" style="margin-top:10px">
+<span class="log-info">Installing requirements...</span>
+<span class="log-err">ERROR: ModuleNotFoundError: No module named 'flask'</span>
+          </div>
+          <div class="callout ok" style="margin-top:10px">
+            <span class="callout-icon">✅</span>
+            <span><strong>対処：</strong><code>requirements.txt</code> に <code>flask</code> が記載されているか確認。記載されていない場合は追記して再提出。</span>
+          </div>
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker red">Java エラー</div>
+          <div class="card-title">UnsupportedClassVersionError</div>
+          <p class="card-body" style="margin-top:6px">ビルドに使った Java バージョンが、申請バージョンと異なります。</p>
+          <div class="log-block" style="margin-top:10px">
+<span class="log-err">java.lang.UnsupportedClassVersionError: Unsupported major.minor version 65.0</span>
+          </div>
+          <div class="callout ok" style="margin-top:10px">
+            <span class="callout-icon">✅</span>
+            <span><strong>対処：</strong>申請したバージョン（例：Java 21）で再ビルドして提出し直す。</span>
+          </div>
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker red">共通エラー</div>
+          <div class="card-title">404 Not Found / ページが表示されない</div>
+          <p class="card-body" style="margin-top:6px">URLパスの設定が間違っているか、リンクが相対パスになっています。</p>
+          <div class="callout ok" style="margin-top:10px">
+            <span class="callout-icon">✅</span>
+            <span><strong>対処（Spring Boot）：</strong>Thymeleaf の <code>th:href="@{/パス}"</code> を使っているか確認。<br />
+            <strong>対処（Flask）：</strong><code>url_for('ルート名')</code> を使っているか確認。</span>
+          </div>
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker red">Flask + DB エラー</div>
+          <div class="card-title">Internal Server Error (500) — 起動直後</div>
+          <p class="card-body" style="margin-top:6px">DBファイルが存在しない、またはパスが間違っています。</p>
+          <div class="callout ok" style="margin-top:10px">
+            <span class="callout-icon">✅</span>
+            <span><strong>対処：</strong><code>db.create_all()</code> がアプリ起動時（<code>app.app_context()</code> 内）に呼ばれているか確認。
+            DBパスに絶対パスを使っていないか確認。</span>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <footer>
+    © Telcation / Student Support &amp; Deploy Guide &nbsp;|&nbsp; <span id="today"></span>
+  </footer>
+
+  <script>
+    // 今日の日付
+    const d = new Date();
+    document.getElementById('today').textContent =
+      `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+    // アクティブナビ追従
+    const anchors = document.querySelectorAll('.section-anchor');
+    const navItems = document.querySelectorAll('.nav-item');
+
+    function updateNav() {
+      let current = 'top';
+      anchors.forEach(el => {
+        if (window.scrollY + 100 >= el.offsetTop) current = el.id;
+      });
+      navItems.forEach(item => {
+        const href = item.getAttribute('href');
+        item.classList.toggle('active', href === '#' + current);
+      });
+    }
+    window.addEventListener('scroll', updateNav, { passive: true });
+    updateNav();
+  </script>
+
+</body>
 </html>
