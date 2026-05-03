@@ -238,8 +238,8 @@
       padding: 5px 0; font-size: 13px; border-bottom: 1px solid var(--border);
     }
     .checklist li:last-child { border-bottom: none; }
-    .checklist li::before { content: '□'; color: var(--muted); margin-top: 1px; flex-shrink: 0; }
-    .checklist li.important::before { content: '☐'; color: var(--red); font-weight: 700; }
+    .checklist li::before { content: '☐'; color: var(--muted); margin-top: 1px; flex-shrink: 0; }
+    .checklist li.important::before { content: '☐'; color: var(--red); }
 
     /* Callout */
     .callout {
@@ -308,10 +308,10 @@
       font-family: var(--mono); font-size: 12px; line-height: 1.7;
       margin-top: 8px; overflow-x: auto;
     }
-    .log-err { color: #f87171; }
-    .log-ok  { color: #4ade80; }
-    .log-info { color: #7dd3fc; }
-    .log-muted { color: #475569; }
+    .log-err { color: #f87171; display: block; }
+    .log-ok  { color: #4ade80; display: block; }
+    .log-info { color: #7dd3fc; display: block; }
+    .log-muted { color: #475569; display: block; }
 
     /* Footer */
     footer {
@@ -506,7 +506,7 @@
       <div class="section-anchor" id="checklist-python">
         <div class="section-head">
           <span class="s-icon">🐍</span>
-          <h2>Python アプリ提出用 zip 作成手順（Windows / VS Code）</h2>
+          <h2>Python アプリ提出用 zip 作成手順（Windows / PyCharm）</h2>
         </div>
 
         <div class="content-card">
@@ -521,25 +521,25 @@
               <div class="step-num">1</div>
               <div class="step-text">
                 <strong>requirements.txt を作成する</strong><br />
-                VS Code のターミナルで仮想環境を有効にした状態で実行：<br />
+                PyCharm 下部の「ターミナル」タブを開き、仮想環境が有効な状態で実行：<br />
                 <code>pip freeze &gt; requirements.txt</code><br />
-                ファイルを開いて内容を確認する（空の場合はライブラリを追記）。
+                生成されたファイルをプロジェクトビューで開いて内容を確認する（空の場合はライブラリを追記）。
               </div>
             </div>
             <div class="step-item">
               <div class="step-num">2</div>
               <div class="step-text">
                 <strong>venv フォルダを除外する</strong><br />
-                <code>venv/</code>、<code>.venv/</code> フォルダはzipに含めない。
-                エクスプローラーで右クリック圧縮するときは、プロジェクトフォルダ内から
-                <code>venv</code> を除いた状態で選択してzipを作成する。
+                <code>venv/</code>、<code>.venv/</code> フォルダはzipに含めない。<br />
+                PyCharm のプロジェクトビューで <code>venv</code> フォルダを除いたファイル群を選択し、
+                エクスプローラーで右クリック圧縮するか、ターミナルで zip コマンドを使って作成する。
               </div>
             </div>
             <div class="step-item">
               <div class="step-num">3</div>
               <div class="step-text">
                 <strong>zip の内部構成を確認する</strong><br />
-                zip を開いたとき、<strong>直下に <code>app.py</code>（またはメインファイル）と <code>requirements.txt</code> が見えている</strong>
+                zip を開いたとき、<strong>直下に <code>app.py</code> と <code>requirements.txt</code> が見えている</strong>
                 こと。フォルダが二重になっていないか確認する。
                 <div class="callout warn" style="margin-top:8px">
                   <span class="callout-icon">⚠</span>
@@ -914,10 +914,6 @@
           <h2>再デプロイ手順</h2>
         </div>
 
-        <div class="section-hint">
-          <strong>講師から指示があったときのみ実施してください。</strong>勝手に何度も再デプロイしないでください。
-        </div>
-
         <div class="content-card">
           <div class="card-kicker blue">手順書</div>
           <div class="card-title">学生向け 再デプロイ手順書</div>
@@ -937,18 +933,18 @@
             <div class="step-item">
               <div class="step-num">2</div>
               <div class="step-text">
-                <strong>対象アプリを選択する</strong><br />
-                ダッシュボードに自分のアプリ一覧が表示されます。<br />
-                再デプロイしたいアプリの「再デプロイ」ボタンを押す。
+                <strong>修正済みのファイルをアップロードする</strong><br />
+                Python の場合：修正済みの <code>.zip</code> を選択してアップロード。<br />
+                Java の場合：再ビルドした <code>.jar</code> を選択してアップロード。<br />
+                <span style="color:var(--muted)">※ ファイルサイズ上限：200MB</span>
               </div>
             </div>
             <div class="step-item">
               <div class="step-num">3</div>
               <div class="step-text">
-                <strong>修正済みのファイルをアップロードする</strong><br />
-                Python の場合：修正済みの <code>.zip</code> を選択してアップロード。<br />
-                Java の場合：再ビルドした <code>.jar</code> を選択してアップロード。<br />
-                <span style="color:var(--muted)">※ ファイルサイズ上限：200MB</span>
+                <strong>対象アプリを選択する</strong><br />
+                ダッシュボードに自分のアプリ一覧が表示されます。<br />
+                再デプロイしたいアプリの「再デプロイ」ボタンを押す。
               </div>
             </div>
             <div class="step-item">
