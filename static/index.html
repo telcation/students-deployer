@@ -522,7 +522,7 @@
               <div class="step-text">
                 <strong>requirements.txt を作成する</strong><br />
                 PyCharm 下部の「ターミナル」タブを開き、仮想環境が有効な状態で実行：<br />
-                <code>pip freeze &gt; requirements.txt</code><br />
+                <code>pip freeze | Out-File -Encoding utf8 requirements.txt</code><br />
                 生成されたファイルをプロジェクトビューで開いて内容を確認する（空の場合はライブラリを追記）。
               </div>
             </div>
@@ -814,7 +814,7 @@
           <div class="ng-item">
             <strong>NG②：requirements.txt がない、または空</strong><br />
             サーバーはライブラリをインストールできず、<code>ModuleNotFoundError</code> になります。
-            <code>pip freeze &gt; requirements.txt</code> で生成し、中身を確認してください。
+            <code>pip freeze | Out-File -Encoding utf8 requirements.txt</code> で生成し、中身を確認してください。
           </div>
           <div class="ng-item">
             <strong>NG③：ビルド成果物（target/, build/classes/ など）を含めた zip を提出している</strong><br />
