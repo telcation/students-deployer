@@ -509,6 +509,137 @@ def teacher_download():
     )
 
 
+# ---------------------------------------------------------------------------
+# アカウント一覧 xlsx アップロード／ダウンロード
+# ---------------------------------------------------------------------------
+
+ACCOUNTS_DIR  = config.UPLOADS_DIR / "accounts"
+ACCOUNTS_FILE = ACCOUNTS_DIR / "アカウント一覧.xlsx"
+
+
+@app.post(f"{URL_PREFIX}/upload_accounts")
+@teacher_login_required
+def teacher_upload_accounts():
+    """講師がアカウント一覧 xlsx をアップロードする。"""
+    return_to = request.form.get("return_to") or f"{URL_PREFIX}/search"
+    f = request.files.get("accounts_file")
+
+    if not f or not f.filename:
+        flash("ファイルが選択されていません", "error")
+        return redirect(return_to)
+
+    if not f.filename.lower().endswith(".xlsx"):
+        flash(".xlsx ファイルのみアップロードできます", "error")
+        return redirect(return_to)
+
+    ACCOUNTS_DIR.mkdir(parents=True, exist_ok=True)
+    f.save(str(ACCOUNTS_FILE))
+    flash("アカウント一覧を更新しました", "ok")
+    return redirect(return_to)
+
+
+@app.get("/accounts/")
+@app.get("/accounts")
+def accounts_view():
+    """認証不要でアカウント一覧を HTML テーブルとして閲覧させる（DL不可、コピペ可）。"""
+    import openpyxl, html as _html
+
+    if not ACCOUNTS_FILE.exists():
+        return (
+            "<html><body style='font-family:sans-serif;padding:40px'>"
+            "<h2>アカウント一覧はまだアップロードされていません。</h2></body></html>",
+            404,
+        )
+
+    wb = openpyxl.load_workbook(ACCOUNTS_FILE, data_only=True)
+    ws = wb.active
+
+    # --- ヘッダー行を探す（「PC番号」が入っている行）---
+    header_row = None
+    data_rows = []
+    for row in ws.iter_rows(values_only=True):
+        if header_row is None:
+            if any(str(c or "").strip() == "PC番号" for c in row):
+                header_row = row
+        else:
+            if any(c is not None for c in row):
+                data_rows.append(row)
+
+    if header_row is None:
+        return (
+            "<html><body style='font-family:sans-serif;padding:40px'>"
+            "<h2>ヘッダー行が見つかりません。</h2></body></html>",
+            500,
+        )
+
+    def cell(v):
+        return _html.escape(str(v)) if v is not None else ""
+
+    thead = "".join(f"<th>{cell(c)}</th>" for c in header_row if c is not None)
+    col_indices = [i for i, c in enumerate(header_row) if c is not None]
+
+    tbody_rows = []
+    for row in data_rows:
+        tds = "".join(f"<td>{cell(row[i] if i < len(row) else None)}</td>" for i in col_indices)
+        tbody_rows.append(f"<tr>{tds}</tr>")
+    tbody = "\n".join(tbody_rows)
+
+    page = f"""<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>アカウント一覧</title>
+  <style>
+    body {{
+      font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
+      background: #f0f4f8; margin: 0; padding: 24px;
+    }}
+    h1 {{ font-size: 18px; margin: 0 0 6px; color: #0f172a; }}
+    .note {{
+      font-size: 12px; color: #64748b; margin-bottom: 18px;
+    }}
+    .wrap {{
+      background: #fff; border-radius: 14px;
+      border: 1px solid #dde3ec;
+      box-shadow: 0 2px 12px rgba(15,23,42,.07);
+      overflow-x: auto; padding: 4px;
+    }}
+    table {{
+      border-collapse: collapse; width: 100%;
+      font-size: 13px;
+    }}
+    th {{
+      background: #1d4ed8; color: #fff;
+      padding: 10px 12px; text-align: left;
+      white-space: nowrap; position: sticky; top: 0;
+    }}
+    td {{
+      padding: 9px 12px; border-bottom: 1px solid #e2e8f0;
+      white-space: nowrap;
+    }}
+    tr:last-child td {{ border-bottom: none; }}
+    tr:nth-child(even) td {{ background: #f8fafc; }}
+    tr:hover td {{ background: #eff6ff; }}
+  </style>
+</head>
+<body>
+  <h1>📊 アカウント一覧</h1>
+  <p class="note">自分のアカウント情報を確認してください。ダウンロードはできません。</p>
+  <div class="wrap">
+    <table>
+      <thead><tr>{thead}</tr></thead>
+      <tbody>{tbody}</tbody>
+    </table>
+  </div>
+</body>
+</html>"""
+    from flask import Response
+    return Response(page, mimetype="text/html",
+                    headers={"Content-Disposition": "inline",
+                             "X-Content-Type-Options": "nosniff"})
+
+
 if __name__ == "__main__":
     host = getattr(config, "TEACHER_HOST", "127.0.0.1")
     port = int(getattr(config, "PORT", 5000))

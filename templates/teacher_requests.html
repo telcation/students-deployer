@@ -133,9 +133,40 @@
       border-color: #ef4444
     }
 
-    .help {
-      color: #475569;
-      font-size: .9rem
+    .danger {
+      background: #ef4444;
+      color: #fff
+    }
+
+    .warn {
+      background: #f59e0b;
+      color: #fff
+    }
+
+    .accounts-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 12px 0;
+      padding: 12px 14px;
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 12px;
+    }
+
+    .accounts-bar label {
+      font-size: .9rem;
+      color: #166534;
+      white-space: nowrap;
+    }
+
+    .accounts-bar input[type=file] {
+      font-size: .9rem;
+      min-width: auto;
+      border: 1px solid #86efac;
+      background: #fff;
+      padding: 6px 10px;
     }
   </style>
 </head>
@@ -161,6 +192,19 @@
     {% endfor %}
     {% endif %}
     {% endwith %}
+
+    <!-- アカウント一覧 xlsx アップロード -->
+    <form class="accounts-bar" method="post"
+          action="{{ url_for('teacher_upload_accounts') }}"
+          enctype="multipart/form-data">
+      <label>📊 アカウント一覧 xlsx：</label>
+      <input type="file" name="accounts_file" accept=".xlsx" required>
+      <input type="hidden" name="return_to" value="{{ request.full_path }}">
+      <button class="btn primary" type="submit">アップロード</button>
+      <a class="btn secondary" href="{{ url_for('accounts_view') }}" target="_blank">
+        👁 現在のファイルを閲覧
+      </a>
+    </form>
 
     <form method="get" action="{{url_for('teacher_search')}}" class="row">
       <div>
