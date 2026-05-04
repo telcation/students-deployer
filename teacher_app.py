@@ -538,8 +538,8 @@ def teacher_upload_accounts():
     return redirect(return_to)
 
 
-@app.get("/accounts/")
-@app.get("/accounts")
+@app.get(f"{URL_PREFIX}/accounts/")
+@app.get(f"{URL_PREFIX}/accounts")
 def accounts_view():
     """認証不要でアカウント一覧を HTML テーブルとして閲覧させる（DL不可、コピペ可）。"""
     import openpyxl, html as _html
