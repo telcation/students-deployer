@@ -552,6 +552,16 @@
                   <span class="callout-icon">⚠</span>
                   <span>NG例：<code>myapp.zip</code> を開いたら <code>myapp/</code> フォルダが入っていて、その中に <code>app.py</code> がある → <strong>二重構造</strong>。要修正。</span>
                 </div>
+                <div class="callout danger" style="margin-top:8px">
+                  <span class="callout-icon">🚨</span>
+                  <div>
+                    <strong>Windowsエクスプローラーでの圧縮は <code>templates/auth/</code> などのサブディレクトリがある場合に使用禁止。</strong><br />
+                    エクスプローラー製のzipはパス区切りが <code>\</code>（バックスラッシュ）になるため、Linuxサーバーでサブディレクトリが正しく展開されず
+                    <code>TemplateNotFound</code> エラーになります。<br />
+                    <strong>必ず <code>7-Zip</code> で圧縮してください</strong>（右クリック → 「7-Zip」→「圧縮」）。<br />
+                    <span style="color:var(--muted)">※ <code>templates/</code> 直下にHTMLファイルしかない（サブフォルダなし）場合は問題ありません。</span>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="step-item">
@@ -852,6 +862,22 @@
           <div class="ng-item">
             <strong>NG⑨：講師の指示なしで何度も再デプロイする</strong><br />
             サーバーに負荷がかかります。再デプロイは講師から指示があった場合のみ実施してください。
+          </div>
+          <div class="ng-item">
+            <strong>NG⑩：Windowsのエクスプローラーでzipを作成している（サブディレクトリがある場合）</strong><br />
+            Windowsのエクスプローラーで作成したzipは、内部のパス区切りが <code>\</code>（バックスラッシュ）になります。
+            <code>templates/</code> の直下にファイルだけある構成なら問題ありませんが、
+            <code>templates/auth/login.html</code> のようにサブディレクトリがある場合、
+            Linuxサーバーで展開したときに <code>auth/</code> ディレクトリが作成されず
+            <code>TemplateNotFound</code> エラーになります。<br />
+            <strong>対策：</strong>zip作成には <code>7-Zip</code>（右クリック → 「7-Zip」→「圧縮」） を使ってください。
+            <div class="log-block" style="margin-top:8px">
+<span class="log-err">❌ Windowsエクスプローラーで作成した場合（内部パスがバックスラッシュ）</span>
+<span class="log-err">   templates\auth\login.html  → Linux展開後: templates/ 直下に "auth\login.html" というファイルができる</span>
+<span class="log-err">   → jinja2.exceptions.TemplateNotFound: auth/login.html</span>
+<span class="log-ok">✅ 7-Zip で作成した場合（内部パスがスラッシュ）</span>
+<span class="log-ok">   templates/auth/login.html  → Linux展開後: templates/auth/ ディレクトリが正しく作成される</span>
+            </div>
           </div>
         </div>
       </div>
