@@ -204,8 +204,20 @@ def _check_flask_strict(zip_path: Path) -> List[str]:
     if _zip_is_single_folder(scan):
         issues.append("zipが1段深い構造です。zip直下に app.py / requirements.txt が来るように作り直してください。")
 
+    # Windowsバックスラッシュパス検出（Linux展開時にサブディレクトリが作られず TemplateNotFound の原因になる）
+    backslash_members = [n for n in scan.names if "\\" in n]
+    if backslash_members:
+        shown = backslash_members[:5]
+        issues.append(
+            "ZIPにWindowsのパス区切り（\\）が含まれています。"
+            "Linuxサーバーで展開すると templates/auth/ などのサブディレクトリが作られず、"
+            "TemplateNotFound エラーになります。"
+            "エクスプローラーのZIP作成ではなく、7-Zip 等で '/' 区切りのZIPを作成してください。例: "
+            + ", ".join(shown)
+        )
+
     # required files at root
-    root_files = {Path(n).name.lower() for n in scan.names if "/" not in n}
+    root_files = {Path(n).name.lower() for n in scan.names if "/" not in n and "\\" not in n}
     if "requirements.txt" not in root_files:
         issues.append("requirements.txt が zip直下にありません。")
     if ("app.py" not in root_files) and ("wsgi.py" not in root_files):
@@ -252,9 +264,8 @@ def _check_flask_strict(zip_path: Path) -> List[str]:
 
         template_members = [
             n for n in scan.names
-            if n.startswith("templates/") and n.lower().endswith((".html", ".htm"))
+            if n.replace("\\", "/").startswith("templates/") and n.lower().endswith((".html", ".htm"))
         ]
-        
 
         for m in template_members:
             txt = _decode_best_effort(_read_member(m))
@@ -288,7 +299,7 @@ def _check_flask_strict(zip_path: Path) -> List[str]:
         js_members = [
             n for n in scan.names
             if n.lower().endswith(".js")
-            and (n.startswith("static/") or n.startswith("templates/"))
+            and (n.replace("\\", "/").startswith("static/") or n.replace("\\", "/").startswith("templates/"))
         ]
         js_abs_hits: List[str] = []
         for m in js_members:
@@ -631,7 +642,7 @@ def _check_flask_strict_issues(zip_path: Path) -> List[Issue]:
 
         template_members = [
             n for n in names
-            if n.startswith("templates/") and n.lower().endswith((".html", ".htm"))
+            if n.replace("\\", "/").startswith("templates/") and n.lower().endswith((".html", ".htm"))
         ]
 
         # templates の絶対パス href/src/action="/..."
