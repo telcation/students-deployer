@@ -392,6 +392,7 @@ def teacher_action():
     
         try:
             if apptype in ("flask", "streamlit", "spring"):
+                service_name = common_paths.service_name(apptype, term, student_id, app_name)
                 subprocess.run(["sudo", "-n", "systemctl", "stop", service_name], check=False)
             requests_db.mark_stopped(REQUESTS_DB_PATH, row.id)
             flash("停止しました", "ok")
