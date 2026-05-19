@@ -177,10 +177,11 @@
     <div class="row" style="justify-content:space-between; align-items:center;">
       <h1>講師 - 申請一覧</h1>
 
-      <!-- ★ ログアウトボタン -->
-      <a class="btn secondary" href="{{ url_for('teacher_logout') }}">
-        ログアウト
-      </a>
+      <!-- ★ ナビゲーション -->
+      <div style="display:flex;gap:8px;">
+        <a class="btn secondary" href="{{ url_for('teacher_menu') }}">← メニュー</a>
+        <a class="btn secondary" href="{{ url_for('teacher_logout') }}">ログアウト</a>
+      </div>
     </div>
 
     <div class="help">status を絞り込み、申請を処理します。</div>
@@ -188,23 +189,11 @@
     {% with msgs = get_flashed_messages(with_categories=true) %}
     {% if msgs %}
     {% for cat, msg in msgs %}
+    <!-- アカウントアップロードは teacher_accounts_manage に移動 -->
     <div class="flash {{ 'err' if cat=='err' else '' }}">{{msg}}</div>
     {% endfor %}
     {% endif %}
     {% endwith %}
-
-    <!-- アカウント一覧 xlsx アップロード -->
-    <form class="accounts-bar" method="post"
-          action="{{ url_for('teacher_upload_accounts') }}"
-          enctype="multipart/form-data">
-      <label>📊 アカウント一覧 xlsx：</label>
-      <input type="file" name="accounts_file" accept=".xlsx" required>
-      <input type="hidden" name="return_to" value="{{ request.full_path }}">
-      <button class="btn primary" type="submit">アップロード</button>
-      <a class="btn secondary" href="{{ url_for('accounts_view') }}" target="_blank">
-        👁 現在のファイルを閲覧
-      </a>
-    </form>
 
     <form method="get" action="{{url_for('teacher_search')}}" class="row">
       <div>

@@ -170,6 +170,53 @@ LINE_NOTIFY_TO = os.environ.get("LINE_NOTIFY_TO", "")  # カンマで複数可
 LINE_NOTIFY_PREFIX = os.environ.get("LINE_NOTIFY_PREFIX", "【受講者デプロイ】")
 
 # -----------------------
+# 環境リセット共通
+# -----------------------
+# リセット操作の実行に必要なキー（PURGE_KEY とは別に管理）
+RESET_KEY = os.environ.get("RESET_KEY", "")
+
+# -----------------------
+# NextCloud リセット
+# -----------------------
+# SSH でアクセスする NextCloud サーバーの IP またはホスト名
+NEXTCLOUD_SSH_HOST = os.environ.get("NEXTCLOUD_SSH_HOST", "")
+
+# SSH ログインユーザー（sudo 権限が必要）
+NEXTCLOUD_SSH_USER = os.environ.get("NEXTCLOUD_SSH_USER", "ubuntu")
+
+# PHP バイナリのパス（occ の実行に使用）
+NEXTCLOUD_OCC_PHP  = os.environ.get("NEXTCLOUD_OCC_PHP",  "/usr/bin/php")
+
+# occ コマンドのパス
+NEXTCLOUD_OCC_PATH = os.environ.get("NEXTCLOUD_OCC_PATH", "/var/www/nextcloud/occ")
+
+# NextCloud の実行ユーザー（occ を sudo -u で実行するユーザー）
+NEXTCLOUD_WEBROOT  = os.environ.get("NEXTCLOUD_WEBROOT",  "www-data")
+
+# NextCloud データディレクトリ（`occ config:system:get datadirectory` で確認）
+NEXTCLOUD_DATA_DIR = os.environ.get("NEXTCLOUD_DATA_DIR", "/var/nextcloud_data")
+
+# -----------------------
+# メールボックスリセット
+# -----------------------
+# SSH でアクセスするメールサーバーのホスト名
+MAIL_SSH_HOST      = os.environ.get("MAIL_SSH_HOST",      "telcation.com")
+
+# SSH ログインユーザー（sudo 権限が必要）
+MAIL_SSH_USER      = os.environ.get("MAIL_SSH_USER",      "ubuntu")
+
+# Maildir の親ディレクトリ（各ユーザーの Maildir は {base}/{user}/Maildir を想定）
+MAIL_MAILDIR_BASE  = os.environ.get("MAIL_MAILDIR_BASE",  "/home")
+
+# クリア対象ユーザー一覧ファイル（1行1ユーザー名）
+# 空にすると Maildir が存在するホームユーザーを自動検出する
+MAIL_USERS_FILE    = os.environ.get("MAIL_USERS_FILE",    "")
+
+# 自動検出時に除外するユーザー（カンマ区切り）
+# "user" のようなシステム管理用ユーザーを誤削除しないために設定する
+MAIL_EXCLUDE_USERS = os.environ.get("MAIL_EXCLUDE_USERS", "user,ubuntu,root")
+
+# -----------------------
 # Helpers
 # -----------------------
 def ensure_dirs() -> None:

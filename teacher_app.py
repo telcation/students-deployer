@@ -462,7 +462,19 @@ def teacher_action():
     
 @app.get("/")
 def index():
-    return redirect(f"{URL_PREFIX}/search")
+    return redirect(f"{URL_PREFIX}/")
+
+
+@app.get(f"{URL_PREFIX}/")
+@teacher_login_required
+def teacher_menu():
+    return render_template("teacher_menu.html")
+
+
+@app.get(f"{URL_PREFIX}/accounts_manage")
+@teacher_login_required
+def teacher_accounts_manage():
+    return render_template("teacher_accounts_manage.html")
 
 
 @app.get(f"{URL_PREFIX}/download")
@@ -522,7 +534,7 @@ ACCOUNTS_FILE = ACCOUNTS_DIR / "アカウント一覧.xlsx"
 @teacher_login_required
 def teacher_upload_accounts():
     """講師がアカウント一覧 xlsx をアップロードする。"""
-    return_to = request.form.get("return_to") or f"{URL_PREFIX}/search"
+    return_to = request.form.get("return_to") or f"{URL_PREFIX}/"
     f = request.files.get("accounts_file")
 
     if not f or not f.filename:
@@ -639,6 +651,211 @@ def accounts_view():
     return Response(page, mimetype="text/html",
                     headers={"Content-Disposition": "inline",
                              "X-Content-Type-Options": "nosniff"})
+
+
+
+
+# ---------------------------------------------------------------------------
+# 環境リセット機能
+# ---------------------------------------------------------------------------
+# config.py に以下を追加して使用:
+#
+#   NEXTCLOUD_SSH_HOST  = os.environ.get("NEXTCLOUD_SSH_HOST", "192.168.x.x")
+#   NEXTCLOUD_SSH_USER  = os.environ.get("NEXTCLOUD_SSH_USER", "ubuntu")
+#   NEXTCLOUD_OCC_PHP   = os.environ.get("NEXTCLOUD_OCC_PHP",  "/usr/bin/php")
+#   NEXTCLOUD_OCC_PATH  = os.environ.get("NEXTCLOUD_OCC_PATH", "/var/www/nextcloud/occ")
+#   NEXTCLOUD_WEBROOT   = os.environ.get("NEXTCLOUD_WEBROOT",  "www-data")
+#   NEXTCLOUD_DATA_DIR  = os.environ.get("NEXTCLOUD_DATA_DIR", "/var/nextcloud_data")
+#   RESET_KEY           = os.environ.get("RESET_KEY", "")
+#
+#   MAIL_SSH_HOST       = os.environ.get("MAIL_SSH_HOST", "telcation.com")
+#   MAIL_SSH_USER       = os.environ.get("MAIL_SSH_USER", "ubuntu")
+#   MAIL_MAILDIR_BASE   = os.environ.get("MAIL_MAILDIR_BASE", "/home")
+#   MAIL_USERS_FILE     = os.environ.get("MAIL_USERS_FILE", "")  # 空なら /etc/passwd から取得
+# ---------------------------------------------------------------------------
+
+
+def _ssh_run(host: str, user: str, cmd: str) -> tuple[int, str, str]:
+    """SSH でリモートコマンドを実行し (returncode, stdout, stderr) を返す。"""
+    result = subprocess.run(
+        ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
+         f"{user}@{host}", cmd],
+        capture_output=True, text=True
+    )
+    return result.returncode, result.stdout.strip(), result.stderr.strip()
+
+
+def _get_reset_key() -> str:
+    return (getattr(config, "RESET_KEY", "") or "").strip()
+
+
+# ---- NextCloud リセット ----
+
+@app.get(f"{URL_PREFIX}/reset_nextcloud")
+@teacher_login_required
+def reset_nextcloud_get():
+    return render_template("teacher_reset_nextcloud.html")
+
+
+@app.post(f"{URL_PREFIX}/reset_nextcloud")
+@teacher_login_required
+def reset_nextcloud_post():
+    reset_key = (request.form.get("reset_key") or "").strip()
+    if not _get_reset_key() or reset_key != _get_reset_key():
+        flash("Reset Key が違います", "error")
+        return redirect(f"{URL_PREFIX}/reset_nextcloud")
+
+    host      = getattr(config, "NEXTCLOUD_SSH_HOST", "")
+    user      = getattr(config, "NEXTCLOUD_SSH_USER", "ubuntu")
+    php       = getattr(config, "NEXTCLOUD_OCC_PHP",  "/usr/bin/php")
+    occ       = getattr(config, "NEXTCLOUD_OCC_PATH", "/var/www/nextcloud/occ")
+    webroot   = getattr(config, "NEXTCLOUD_WEBROOT",  "www-data")
+    data_dir  = getattr(config, "NEXTCLOUD_DATA_DIR", "/var/nextcloud_data")
+
+    if not host:
+        flash("NEXTCLOUD_SSH_HOST が設定されていません", "error")
+        return redirect(f"{URL_PREFIX}/reset_nextcloud")
+
+    logs = []
+    errors = []
+
+    try:
+        # 1. ユーザー一覧取得（admin を除外）
+        rc, out, err = _ssh_run(host, user,
+            f"sudo -u {webroot} {php} {occ} user:list --output=json 2>/dev/null")
+        if rc != 0:
+            raise RuntimeError(f"user:list 失敗: {err}")
+
+        import json as _json
+        try:
+            user_map = _json.loads(out)   # {"uid": "display_name", ...}
+            nc_users = [u for u in user_map.keys() if u != "admin"]
+        except Exception:
+            raise RuntimeError(f"user:list のパース失敗: {out[:200]}")
+
+        if not nc_users:
+            flash("削除対象ユーザーが見つかりませんでした（admin のみ）", "error")
+            return redirect(f"{URL_PREFIX}/reset_nextcloud")
+
+        # 2. 各ユーザーのファイルを削除（ホームディレクトリ内 files/ を空にする）
+        for nc_user in nc_users:
+            user_files_dir = f"{data_dir}/{nc_user}/files"
+            # files/ 以下を空にする（ディレクトリ自体は残す）
+            rc, _, err = _ssh_run(host, user,
+                f"sudo find {user_files_dir} -mindepth 1 -delete 2>&1 | head -5")
+            if rc != 0:
+                errors.append(f"{nc_user}: ファイル削除失敗 - {err}")
+                continue
+
+            # 3. occ で DB のファイルキャッシュを更新
+            rc, _, err = _ssh_run(host, user,
+                f"sudo -u {webroot} {php} {occ} files:scan {nc_user} --quiet 2>&1")
+            if rc != 0:
+                errors.append(f"{nc_user}: files:scan 失敗 - {err}")
+                continue
+
+            # 4. ゴミ箱を空にする
+            _ssh_run(host, user,
+                f"sudo -u {webroot} {php} {occ} trashbin:cleanup {nc_user} 2>/dev/null")
+
+            logs.append(nc_user)
+
+        if errors:
+            flash("一部エラー:\n" + "\n".join(errors), "error")
+        if logs:
+            flash(f"NextCloud リセット完了: {len(logs)} ユーザー（{', '.join(logs)}）", "ok")
+
+    except Exception as e:
+        flash(f"NextCloud リセットに失敗: {e}", "error")
+
+    return redirect(f"{URL_PREFIX}/reset_nextcloud")
+
+
+# ---- メールボックス リセット ----
+
+@app.get(f"{URL_PREFIX}/reset_mail")
+@teacher_login_required
+def reset_mail_get():
+    return render_template("teacher_reset_mail.html")
+
+
+@app.post(f"{URL_PREFIX}/reset_mail")
+@teacher_login_required
+def reset_mail_post():
+    reset_key = (request.form.get("reset_key") or "").strip()
+    if not _get_reset_key() or reset_key != _get_reset_key():
+        flash("Reset Key が違います", "error")
+        return redirect(f"{URL_PREFIX}/reset_mail")
+
+    host         = getattr(config, "MAIL_SSH_HOST",      "")
+    user         = getattr(config, "MAIL_SSH_USER",      "ubuntu")
+    maildir_base = getattr(config, "MAIL_MAILDIR_BASE",  "/home")
+    users_file   = getattr(config, "MAIL_USERS_FILE",    "")
+    # 除外ユーザー（カンマ区切り）。"user" のようなシステムユーザーを誤削除しないために使う
+    exclude_raw  = getattr(config, "MAIL_EXCLUDE_USERS", "user,ubuntu,root")
+    exclude_set  = {u.strip() for u in exclude_raw.split(",") if u.strip()}
+
+    if not host:
+        flash("MAIL_SSH_HOST が設定されていません", "error")
+        return redirect(f"{URL_PREFIX}/reset_mail")
+
+    logs = []
+    errors = []
+
+    try:
+        # ユーザー一覧取得
+        if users_file:
+            # ファイルから取得（1行1ユーザー）
+            rc, out, err = _ssh_run(host, user, f"cat {users_file}")
+            if rc != 0:
+                raise RuntimeError(f"ユーザーファイル読み込み失敗: {err}")
+            mail_users = [u.strip() for u in out.splitlines()
+                          if u.strip() and u.strip() not in exclude_set]
+        else:
+            # Maildir が存在するホームディレクトリのユーザーを自動検出
+            rc, out, err = _ssh_run(host, user,
+                f"find {maildir_base} -maxdepth 2 -name 'Maildir' -type d 2>/dev/null")
+            if rc != 0:
+                raise RuntimeError(f"Maildir 検索失敗: {err}")
+            # /home/<user>/Maildir → <user> を取り出す
+            mail_users = []
+            base_depth = len(maildir_base.rstrip("/").split("/"))
+            for path in out.splitlines():
+                parts = path.strip().split("/")
+                if len(parts) > base_depth:
+                    detected = parts[base_depth]
+                    if detected and detected not in exclude_set:
+                        mail_users.append(detected)
+
+        if not mail_users:
+            flash("削除対象メールユーザーが見つかりませんでした", "error")
+            return redirect(f"{URL_PREFIX}/reset_mail")
+
+        for mu in mail_users:
+            maildir = f"{maildir_base}/{mu}/Maildir"
+            # cur / new / tmp の中身を削除（ディレクトリ構造は残す）
+            cmd = (
+                f"for d in cur new tmp; do "
+                f"  sudo find {maildir}/$d -mindepth 1 -delete 2>/dev/null; "
+                f"done; "
+                # サブフォルダ（Sent, Trash 等）も空にする
+                f"sudo find {maildir} -mindepth 3 -maxdepth 3 -type f -delete 2>/dev/null"
+            )
+            rc, _, err = _ssh_run(host, user, cmd)
+            if rc != 0:
+                errors.append(f"{mu}: {err[:80]}")
+                continue
+            logs.append(mu)
+
+        if errors:
+            flash("一部エラー:\n" + "\n".join(errors), "error")
+        if logs:
+            flash(f"メールボックスクリア完了: {len(logs)} ユーザー（{', '.join(logs)}）", "ok")
+
+    except Exception as e:
+        flash(f"メールリセットに失敗: {e}", "error")
+
+    return redirect(f"{URL_PREFIX}/reset_mail")
 
 
 if __name__ == "__main__":
