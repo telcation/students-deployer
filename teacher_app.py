@@ -164,7 +164,7 @@ def teacher_login_required(f):
 
 @app.get(f"{URL_PREFIX}/login")
 def teacher_login_get():
-    nxt = request.args.get("next", f"{URL_PREFIX}/search")
+    nxt = request.args.get("next", f"{URL_PREFIX}/")
     return render_template("teacher_login.html", next=nxt)
 
 
