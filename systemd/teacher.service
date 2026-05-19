@@ -11,6 +11,7 @@ Environment=PYTHONPATH=/home/appuser/students_deployer
 Environment=PORT=5000
 Environment=SECRET_KEY=400b0b33c34091aacc03262ea960a5eb5d2f280a4b3dbca471e9222f90c02dac
 Environment=PURGE_KEY=purge
+Environment=RESET_KEY=reset
 ExecStart=/home/appuser/students_deployer/venv/bin/python /home/appuser/students_deployer/teacher_app.py
 Restart=always
 RestartSec=2
