@@ -591,6 +591,8 @@ def accounts_view():
     thead = "".join(f"<th>{cell(c)}</th>" for c in header_row if c is not None)
     col_indices = [i for i, c in enumerate(header_row) if c is not None]
 
+    menu_url = url_for("teacher_menu")
+
     tbody_rows = []
     for row in data_rows:
         tds = "".join(f"<td>{cell(row[i] if i < len(row) else None)}</td>" for i in col_indices)
@@ -634,10 +636,22 @@ def accounts_view():
     tr:last-child td {{ border-bottom: none; }}
     tr:nth-child(even) td {{ background: #f8fafc; }}
     tr:hover td {{ background: #eff6ff; }}
+    .nav {{
+      display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+    }}
+    .btn-back {{
+      padding: 7px 14px; background: #fff; border: 1px solid #cbd5e1;
+      border-radius: 10px; color: #334155; text-decoration: none;
+      font-size: 13px; font-weight: 700;
+    }}
+    .btn-back:hover {{ background: #f1f5f9; }}
   </style>
 </head>
 <body>
-  <h1>📊 アカウント一覧</h1>
+  <div class="nav">
+    <a class="btn-back" href="{menu_url}">← 講師メニュー</a>
+    <h1 style="margin:0">📊 アカウント一覧</h1>
+  </div>
   <p class="note">自分のアカウント情報を確認してください。ダウンロードはできません。</p>
   <div class="wrap">
     <table>
