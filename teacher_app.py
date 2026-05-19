@@ -814,7 +814,7 @@ def reset_mail_post():
         else:
             # Maildir が存在するホームディレクトリのユーザーを自動検出
             rc, out, err = _ssh_run(host, user,
-                f"find {maildir_base} -maxdepth 2 -name 'Maildir' -type d 2>/dev/null")
+                f"sudo find {maildir_base} -maxdepth 2 -name 'Maildir' -type d 2>/dev/null")
             if rc != 0:
                 raise RuntimeError(f"Maildir 検索失敗: {err}")
             # /home/<user>/Maildir → <user> を取り出す
