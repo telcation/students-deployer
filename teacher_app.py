@@ -831,24 +831,13 @@ def reset_mail_post():
             flash("削除対象メールユーザーが見つかりませんでした", "error")
             return redirect(f"{URL_PREFIX}/reset_mail")
 
-        for mu in mail_users:
-            maildir = f"{maildir_base}/{mu}/Maildir"
-            # cur / new / tmp の中身とサブフォルダのメールを削除（ディレクトリ構造は残す）
-            cmd = (
-                f"sudo find {maildir} -mindepth 2 -type f -delete 2>/dev/null; "
-                f"sudo find {maildir} -mindepth 2 -type s -delete 2>/dev/null; "
-                f"echo ok"
-            )
-            rc, out, err = _ssh_run(host, user, cmd)
-            if "ok" not in out:
-                errors.append(f"{mu}: {err[:80]}")
-                continue
-            logs.append(mu)
+        # 専用スクリプトで全ユーザーのメールを一括削除
+        rc, out, err = _ssh_run(host, user, "sudo /usr/local/bin/clear_mailboxes.sh")
+        if "ok" not in out:
+            flash(f"メールボックスクリアに失敗: {err}", "error")
+            return redirect(f"{URL_PREFIX}/reset_mail")
 
-        if errors:
-            flash("一部エラー:\n" + "\n".join(errors), "error")
-        if logs:
-            flash(f"メールボックスクリア完了: {len(logs)} ユーザー（{', '.join(logs)}）", "ok")
+        flash(f"メールボックスクリア完了: {len(mail_users)} ユーザー（{', '.join(mail_users)}）", "ok")
 
     except Exception as e:
         flash(f"メールリセットに失敗: {e}", "error")
