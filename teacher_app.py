@@ -172,7 +172,7 @@ def teacher_login_get():
 def teacher_login_post():
     teacher_id = (request.form.get("teacher_id") or "").strip()
     password = (request.form.get("password") or "")
-    nxt = request.form.get("next") or f"{URL_PREFIX}/search"
+    nxt = request.form.get("next") or f"{URL_PREFIX}/"
 
     # まだ講師が1人も登録されていない場合は、ログインできないので明示
     if requests_db.teachers_count(REQUESTS_DB_PATH) == 0:
