@@ -679,7 +679,6 @@ def _ssh_run(host: str, user: str, cmd: str) -> tuple[int, str, str]:
     """SSH でリモートコマンドを実行し (returncode, stdout, stderr) を返す。"""
     result = subprocess.run(
         ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
-         "-o", "RequestTTY=force",
          f"{user}@{host}", cmd],
         capture_output=True, text=True
     )
