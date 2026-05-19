@@ -345,24 +345,24 @@
                 </select>
 
                 {% if r.request_kind == 'spring' %}
-                <div class="drop-zone" id="dz{{ r.id }}" data-rid="{{ r.id }}">
-                  <input type="file" name="file" accept=".zip" required id="fi{{ r.id }}">
+                <div class="drop-zone" id="dz{{ r.id }}-sp" data-rid="{{ r.id }}-sp">
+                  <input type="file" name="file" accept=".zip" required id="fi{{ r.id }}-sp">
                   <div class="dz-label">📂 ここにファイルをドロップ、またはクリックして選択</div>
-                  <div class="dz-name" id="fn{{ r.id }}"><span class="muted">（.zip）</span></div>
+                  <div class="dz-name" id="fn{{ r.id }}-sp"><span class="muted">（.zip）</span></div>
                 </div>
                 {% elif r.request_kind in ('flask', 'streamlit') %}
-                <div class="drop-zone" id="dz{{ r.id }}" data-rid="{{ r.id }}">
+                <div class="drop-zone" id="dz{{ r.id }}-fl" data-rid="{{ r.id }}-fl">
                   <input type="file" name="file"
-                    accept=".zip,.html,.htm,.css,.js,.json,.png,.jpg,.jpeg,.gif,.svg,.webp,.ico,.txt" required id="fi{{ r.id }}">
+                    accept=".zip,.html,.htm,.css,.js,.json,.png,.jpg,.jpeg,.gif,.svg,.webp,.ico,.txt" required id="fi{{ r.id }}-fl">
                   <div class="dz-label">📂 ここにファイルをドロップ、またはクリックして選択</div>
-                  <div class="dz-name" id="fn{{ r.id }}"><span class="muted">（.zip 等）</span></div>
+                  <div class="dz-name" id="fn{{ r.id }}-fl"><span class="muted">（.zip 等）</span></div>
                 </div>
                 {% else %}
-                <div class="drop-zone" id="dz{{ r.id }}" data-rid="{{ r.id }}">
+                <div class="drop-zone" id="dz{{ r.id }}-st" data-rid="{{ r.id }}-st">
                   <input type="file" name="file"
-                    accept=".zip,.html,.htm,.css,.js,.json,.png,.jpg,.jpeg,.gif,.svg,.webp,.ico,.txt" required id="fi{{ r.id }}">
+                    accept=".zip,.html,.htm,.css,.js,.json,.png,.jpg,.jpeg,.gif,.svg,.webp,.ico,.txt" required id="fi{{ r.id }}-st">
                   <div class="dz-label">📂 ここにファイルをドロップ、またはクリックして選択</div>
-                  <div class="dz-name" id="fn{{ r.id }}"><span class="muted">（.zip 等）</span></div>
+                  <div class="dz-name" id="fn{{ r.id }}-st"><span class="muted">（.zip 等）</span></div>
                 </div>
                 {% endif %}
 
