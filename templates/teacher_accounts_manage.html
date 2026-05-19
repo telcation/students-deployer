@@ -109,6 +109,52 @@
       color: #64748b;
       margin-top: 14px;
     }
+
+    /* ドラッグ＆ドロップエリア */
+    .drop-zone {
+      border: 2px dashed #86efac;
+      border-radius: 14px;
+      background: #f0fdf4;
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: background .2s, border-color .2s;
+      position: relative;
+    }
+    .drop-zone.drag-over {
+      background: #dcfce7;
+      border-color: #22c55e;
+    }
+    .drop-zone .drop-icon {
+      font-size: 2rem;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .drop-zone .drop-label {
+      font-weight: 700;
+      font-size: .95rem;
+      color: #166534;
+    }
+    .drop-zone .drop-sub {
+      font-size: .82rem;
+      color: #4ade80;
+      margin-top: 4px;
+    }
+    .drop-zone input[type=file] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .file-selected {
+      margin-top: 10px;
+      font-size: .88rem;
+      color: #15803d;
+      font-weight: 700;
+      min-height: 1.2em;
+    }
   </style>
 </head>
 <body>
@@ -128,12 +174,21 @@
 
     <div class="upload-box">
       <label>アカウント一覧 xlsx をアップロード</label>
-      <form method="post"
+      <form id="uploadForm" method="post"
             action="{{ url_for('teacher_upload_accounts') }}"
             enctype="multipart/form-data">
-        <input type="file" name="accounts_file" accept=".xlsx" required>
         <input type="hidden" name="return_to" value="{{ url_for('teacher_accounts_manage') }}">
-        <div class="btn-row">
+
+        <!-- ドラッグ＆ドロップ + クリック選択エリア -->
+        <div class="drop-zone" id="dropZone">
+          <input type="file" name="accounts_file" accept=".xlsx" id="fileInput" required>
+          <span class="drop-icon">📂</span>
+          <span class="drop-label">ここにファイルをドロップ</span>
+          <div class="drop-sub">または クリックして選択</div>
+        </div>
+        <div class="file-selected" id="fileSelected"></div>
+
+        <div class="btn-row" style="margin-top:14px">
           <button class="btn primary" type="submit">アップロード</button>
           <a class="btn secondary" href="{{ url_for('accounts_view') }}" target="_blank">
             👁 現在のファイルを閲覧
@@ -144,5 +199,47 @@
 
     <p class="help">.xlsx 形式のみアップロードできます。アップロードすると既存ファイルは上書きされます。</p>
   </div>
+
+  <script>
+    const dropZone   = document.getElementById('dropZone');
+    const fileInput  = document.getElementById('fileInput');
+    const fileLabel  = document.getElementById('fileSelected');
+
+    function showFileName(file) {
+      fileLabel.textContent = file ? `✅ ${file.name}` : '';
+    }
+
+    // クリック選択後の表示
+    fileInput.addEventListener('change', () => {
+      showFileName(fileInput.files[0]);
+    });
+
+    // ドラッグ中のハイライト
+    ['dragenter', 'dragover'].forEach(ev => {
+      dropZone.addEventListener(ev, e => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+      });
+    });
+    ['dragleave', 'drop'].forEach(ev => {
+      dropZone.addEventListener(ev, () => dropZone.classList.remove('drag-over'));
+    });
+
+    // ドロップ処理
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+      if (!file.name.toLowerCase().endsWith('.xlsx')) {
+        alert('.xlsx ファイルのみアップロードできます');
+        return;
+      }
+      // DataTransfer を input に反映
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      fileInput.files = dt.files;
+      showFileName(file);
+    });
+  </script>
 </body>
 </html>

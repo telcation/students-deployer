@@ -569,12 +569,21 @@ def accounts_view():
 
     # --- ヘッダー行を探す（「PC番号」が入っている行）---
     header_row = None
+    pc_col_idx = None   # 「PC番号」列のインデックス
     data_rows = []
     for row in ws.iter_rows(values_only=True):
         if header_row is None:
-            if any(str(c or "").strip() == "PC番号" for c in row):
-                header_row = row
+            for i, c in enumerate(row):
+                if str(c or "").strip() == "PC番号":
+                    header_row = row
+                    pc_col_idx = i
+                    break
         else:
+            # PC番号列がブランクの行は無視する
+            if pc_col_idx is not None:
+                pc_val = row[pc_col_idx] if pc_col_idx < len(row) else None
+                if pc_val is None or str(pc_val).strip() == "":
+                    continue
             if any(c is not None for c in row):
                 data_rows.append(row)
 
