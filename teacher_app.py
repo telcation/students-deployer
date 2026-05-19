@@ -833,16 +833,14 @@ def reset_mail_post():
 
         for mu in mail_users:
             maildir = f"{maildir_base}/{mu}/Maildir"
-            # cur / new / tmp の中身を削除（ディレクトリ構造は残す）
+            # cur / new / tmp の中身とサブフォルダのメールを削除（ディレクトリ構造は残す）
             cmd = (
-                f"for d in cur new tmp; do "
-                f"  sudo find {maildir}/$d -mindepth 1 -delete 2>/dev/null; "
-                f"done; "
-                # サブフォルダ（Sent, Trash 等）も空にする
-                f"sudo find {maildir} -mindepth 3 -maxdepth 3 -type f -delete 2>/dev/null"
+                f"sudo find {maildir} -mindepth 2 -type f -delete 2>/dev/null; "
+                f"sudo find {maildir} -mindepth 2 -type s -delete 2>/dev/null; "
+                f"echo ok"
             )
-            rc, _, err = _ssh_run(host, user, cmd)
-            if rc != 0:
+            rc, out, err = _ssh_run(host, user, cmd)
+            if "ok" not in out:
                 errors.append(f"{mu}: {err[:80]}")
                 continue
             logs.append(mu)
