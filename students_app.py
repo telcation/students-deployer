@@ -593,6 +593,44 @@ def _check_spring_jar_strict(jar_path: Path) -> List[str]:
             if len(abs_hits) > 8:
                 issues.append(f"（他にも {len(abs_hits) - 8} 件あります）")
 
+        # --- application.properties / application.yml の DB URL チェック ---
+        props_candidates = [
+            "BOOT-INF/classes/application.properties",
+            "BOOT-INF/classes/application.yml",
+            "BOOT-INF/classes/application.yaml",
+        ]
+        for props_path in props_candidates:
+            if props_path not in names:
+                continue
+            try:
+                props_text = zf.read(props_path).decode("utf-8", errors="replace")
+            except Exception:
+                continue
+
+            # Windowsローカルパスのハードコード
+            if re.search(r"jdbc:h2:[A-Za-z]:[/\\\\]", props_text):
+                issues.append(
+                    "[NG] application.properties に Windows ローカルパスの H2 DB URL が含まれています。"
+                    "サーバー上では接続できません。"
+                    "例: jdbc:h2:C:/Users/... → jdbc:h2:./data/mydb に修正してください。"
+                )
+
+            # AUTO_SERVER=TRUE
+            if "AUTO_SERVER=TRUE" in props_text.upper():
+                issues.append(
+                    "[WARN] application.properties に AUTO_SERVER=TRUE が含まれています。"
+                    "サーバー環境では H2 の TCP サーバー起動に失敗し、DB 接続エラーになります。"
+                    "削除してください。"
+                )
+
+            # インメモリDB
+            if re.search(r"jdbc:h2:mem:", props_text, re.IGNORECASE):
+                issues.append(
+                    "[WARN] application.properties に H2 インメモリ DB が設定されています。"
+                    "サーバー再起動のたびにデータが消えます。"
+                    "動作確認用途のみ許容し、永続化が必要な場合はファイル DB に変更してください。"
+                )
+
     return sorted(set(issues))
 
 
