@@ -37,7 +37,11 @@ def _is_private_host(host: str) -> bool:
 def generate_public_url(row):
     """
     Telcationのルーティング規則に従ってURLを動的に生成する
-    規則: /{kind_prefix}/{term}/{student_id}/{app_name}/
+
+    static     -> /s/
+    flask      -> /f/
+    streamlit  -> /f/
+    spring     -> /b/
     """
     try:
         term = ids_ports.student_id_to_term(row.student_id)
@@ -53,13 +57,16 @@ def generate_public_url(row):
 
     base = (base or "").rstrip("/")
 
-    kind = row.request_kind
-    if kind == "spring":
-        prefix = "b"
-    elif kind == "flask":
-        prefix = "f"
-    else:
-        prefix = "s"
+    kind = (row.request_kind or "").strip().lower()
+
+    prefix_map = {
+        "static": "s",
+        "flask": "f",
+        "streamlit": "f",
+        "spring": "b",
+    }
+
+    prefix = prefix_map.get(kind, "s")
 
     if not base:
         return ""
