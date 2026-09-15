@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+from datetime import datetime
 from dataclasses import dataclass
 from functools import wraps
 from pathlib import Path
@@ -34,7 +35,7 @@ import spring_runtime  # type: ignore
 from students_ops import _get_service_state, _service_and_appdir, _install_requirements_if_present, _has_any_file
 from zip_safety import _scan_zip, _zip_is_single_folder, _safe_extract_zip, _basic_file_safety_check
 from deploy_report import Issue, _issue_from_text, _dedupe_issues, issues_to_items, _report_path, _delete_report_if_exists, _write_html_report
-from line_notify import _notify_first_deploy_result
+from line_notify import _notify_first_deploy_result, _notify_extra_file_upload
 
 
 # ============================================================
@@ -49,6 +50,16 @@ URL_PREFIX = str(getattr(config, "STUDENTS_URL_PREFIX", "/redeploy")).rstrip("/"
 
 # Deploy-check defaults
 DEPLOY_CHECK_DEFAULT = str(getattr(config, "DEPLOY_CHECK_DEFAULT", "off")).lower()  # "on" / "off"
+
+# ------------------------------------------------------------
+# 個別ファイル配置（.env など）: 通常のデプロイ（zip）チェックとは別動線
+# ------------------------------------------------------------
+# static は public_dir がそのままWeb公開されるため対象外（秘密情報が誰でも読める場所に置かれてしまう）
+EXTRA_UPLOAD_ALLOWED_KINDS = {"flask", "streamlit", "spring"}
+# デプロイ管理下のファイルはこの経路での上書きを禁止（通常のチェック済みアップロードのみで更新させる）
+EXTRA_UPLOAD_BLOCKED_FILENAMES = {"app.py", "wsgi.py", "requirements.txt", "app.jar"}
+# zip/jar はこの経路では受け付けない（通常のアップロード機能＝チェック対象の経路を使わせる）
+EXTRA_UPLOAD_BLOCKED_EXTS = {".zip", ".jar"}
 
 # ============================================================
 # Flask app
@@ -1302,6 +1313,116 @@ def students_upload():
             shutil.rmtree(tmp_dir, ignore_errors=True)
         except Exception:
             pass
+
+
+@app.post(f"{URL_PREFIX}/upload_extra")
+@login_required
+def students_upload_extra():
+    """
+    .env などの任意ファイルを、通常のデプロイ（zip）チェックを通さずに
+    アプリのディレクトリへ直接配置するための、別動線の機能。
+
+    「現状の制限（.envの同梱禁止など）を解除する」のではなく、
+    受講者が明示的に選ぶ別の操作として提供する：
+      - 対象は flask/streamlit/spring のみ（static は Web公開ディレクトリに
+        直接置かれてしまうため対象外）
+      - app.py / requirements.txt など、デプロイ管理下のファイルはこの経路では上書き不可
+      - zip / jar はこの経路では受け付けない（通常のアップロード機能を使わせる）
+      - フロント側のチェックボックス必須に加え、バックエンド側でも同じ値を確認する
+      - デプロイ側の _deploy_check（.env同梱禁止など）は通さないが、
+        禁止拡張子・サイズ上限などの最低限の安全チェックは適用する
+      - 反映（サービス再起動）は自動では行わない。既存の
+        「再デプロイ（アップロード不要）」ボタンを受講者が別途押す想定
+    """
+    student_id = session["student_id"]
+    term = _term_of(student_id)
+
+    request_id = int(request.form.get("request_id") or "0")
+    row = requests_db.get_by_id(REQUESTS_DB_PATH, request_id)
+    if not row or row.student_id != student_id:
+        return _render_with_msg("対象の申請が見つかりません。", student_id)
+
+    if row.request_kind not in EXTRA_UPLOAD_ALLOWED_KINDS:
+        return _render_with_msg(
+            "このアプリ種別（static）では、この機能でのファイル配置はできません。"
+            "（公開ディレクトリに置かれ、Webから誰でも直接読み取れてしまうためです）",
+            student_id,
+        )
+
+    if row.status not in ("done", "public", "stopped"):
+        return _render_with_msg("この状態ではファイルを配置できません。先に通常のデプロイを完了してください。", student_id)
+
+    confirm = (request.form.get("confirm_understood") or "").strip().lower()
+    if confirm not in ("on", "1", "true", "yes"):
+        return _render_with_msg(
+            "確認チェックボックスにチェックが必要です（内容を理解した上での操作であることの確認）。",
+            student_id,
+        )
+
+    f = request.files.get("file")
+    if not f or not getattr(f, "filename", ""):
+        return _render_with_msg("ファイルが選択されていません。", student_id)
+
+    filename = _safe_filename(f.filename)
+    lower = filename.lower()
+
+    if Path(filename).suffix.lower() in EXTRA_UPLOAD_BLOCKED_EXTS:
+        return _render_with_msg(
+            "zip / jar はこの機能では配置できません。通常のアップロード（デプロイ）機能をご利用ください。",
+            student_id,
+        )
+
+    if lower in EXTRA_UPLOAD_BLOCKED_FILENAMES:
+        return _render_with_msg(
+            f"「{filename}」はデプロイ管理下のファイルのため、この機能では上書きできません。"
+            "通常のアップロード（デプロイ）機能をご利用ください。",
+            student_id,
+        )
+
+    _, app_dir = _service_and_appdir(term, student_id, row.app_name, row.request_kind)
+    app_dir_p = Path(app_dir)
+    app_dir_p.mkdir(parents=True, exist_ok=True)
+
+    tmp_dir = Path(tempfile.mkdtemp(prefix="extra_upload_", dir=str(BASE_DIR)))
+    try:
+        tmp_path = tmp_dir / filename
+        f.save(str(tmp_path))
+
+        # 最低限の安全チェック（禁止拡張子・サイズ上限）は通常アップロードと同じ基準を適用
+        safety_issues = _basic_file_safety_check(tmp_path, filename)
+        if safety_issues:
+            return _render_with_msg("配置できません: " + " / ".join(safety_issues), student_id)
+
+        dest_path = (app_dir_p / filename).resolve()
+        if dest_path.parent != app_dir_p.resolve():
+            return _render_with_msg("ファイル名が不正です。", student_id)
+
+        size_bytes = tmp_path.stat().st_size
+        dest_path.write_bytes(tmp_path.read_bytes())
+
+        # 監査ログ（app_dir はWeb非公開のため、ここに残しても安全）
+        try:
+            log_path = app_dir_p / ".extra_uploads.log"
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            with open(log_path, "a", encoding="utf-8") as lf:
+                lf.write(f"{ts}\t{filename}\t{size_bytes}bytes\tby={student_id}\n")
+        except Exception:
+            pass
+
+        try:
+            _notify_extra_file_upload(
+                student_id=student_id, term=term, app_name=row.app_name,
+                kind=row.request_kind, filename=filename, size_bytes=size_bytes,
+            )
+        except Exception:
+            pass
+
+        return _render_with_msg(
+            f"「{filename}」を配置しました。反映するには「再デプロイ（アップロード不要）」を押してください。",
+            student_id,
+        )
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 @app.post(f"{URL_PREFIX}/restart")

@@ -74,6 +74,24 @@ def _notify_new_request(student_id: str, term: str, app_name: str, kind: str, ap
     _line_push("\n".join(lines))
 
 
+def _notify_extra_file_upload(student_id: str, term: str, app_name: str, kind: str,
+                               filename: str, size_bytes: int) -> None:
+    """
+    通常のデプロイ（zip）チェックを通さない「個別ファイル配置」機能が使われた際の通知。
+    .env 等の秘密情報が絡みやすい操作のため、granularなON/OFF設定（on_new/on_publish等）とは
+    独立に、LINE通知が有効なら常に講師へ知らせる（見落とし防止・監査目的）。
+    """
+    lines = [
+        f"{LINE_NOTIFY_PREFIX} 個別ファイル配置",
+        f"受講者ID: {student_id}（{term}）",
+        f"種別: {kind}",
+        f"アプリ名: {app_name}",
+        f"ファイル名: {filename}（{size_bytes}bytes）",
+        "※ 通常のデプロイチェックは通していません。",
+    ]
+    _line_push("\n".join(lines))
+
+
 def _notify_first_deploy_result(student_id: str, term: str, app_name: str, kind: str,
                                 ok: bool, *,
                                 app_desc: str = "",

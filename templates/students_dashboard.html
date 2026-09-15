@@ -380,6 +380,39 @@
 
               {% endif %}
 
+              {% if r.status in ("done", "public", "stopped") and r.request_kind in ("flask", "streamlit", "spring") %}
+              <details style="margin-top:14px; border-top:1px dashed #cbd5e1; padding-top:10px;">
+                <summary class="small" style="cursor:pointer; font-weight:700; color:#b45309;">
+                  ⚠ 個別ファイルの配置（.env など）
+                </summary>
+                <div class="small muted" style="margin:8px 0;">
+                  通常のアップロード（デプロイ）とは別の機能です。デプロイ前チェックは通しません。<br>
+                  app.py / requirements.txt など、デプロイ管理下のファイルはここでは上書きできません。<br>
+                  zip / jar もここでは配置できません（通常のアップロードをご利用ください）。<br>
+                  配置後、反映するには下の「再デプロイ（アップロード不要）」を押してください。
+                </div>
+                <form method="post" action="{{ url_for('students_upload_extra') }}" enctype="multipart/form-data"
+                  onsubmit="return confirm('通常のデプロイチェックを通さずに、選んだファイルをそのままサーバーへ配置します。内容を理解した上で実行しますか？');">
+                  <input type="hidden" name="request_id" value="{{ r.id }}">
+
+                  <div class="drop-zone" id="dz{{ r.id }}-env" data-rid="{{ r.id }}-env">
+                    <input type="file" name="file" required id="fi{{ r.id }}-env">
+                    <div class="dz-label">📂 ここにファイルをドロップ、またはクリックして選択（例: .env）</div>
+                    <div class="dz-name" id="fn{{ r.id }}-env"><span class="muted">（zip / jar は不可）</span></div>
+                  </div>
+
+                  <label class="small" style="display:flex; align-items:flex-start; gap:6px; margin-top:8px;">
+                    <input type="checkbox" name="confirm_understood" value="on" required>
+                    内容を理解した上で、このファイルをサーバーに直接配置します。
+                  </label>
+
+                  <div class="row" style="margin-top:10px;">
+                    <button type="submit" class="secondary">ファイルを配置する</button>
+                  </div>
+                </form>
+              </details>
+              {% endif %}
+
               {% if r.request_kind in ("flask", "streamlit", "spring") and r.status in ("done", "public") %}
               <form method="post" action="{{ url_for('students_stop') }}">
                 <input type="hidden" name="request_id" value="{{ r.id }}">
