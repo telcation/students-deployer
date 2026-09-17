@@ -7,7 +7,7 @@
   <style>
     body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #f8fafc; margin: 18px; }
     .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 24px;
-            box-shadow: 0 8px 22px rgba(2,6,23,.06); max-width: 560px; margin: 40px auto; }
+            box-shadow: 0 8px 22px rgba(2,6,23,.06); max-width: 720px; margin: 40px auto; }
     .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     h1 { margin: 0; font-size: 1.2rem; }
     .btn { padding: 10px 14px; border: 0; border-radius: 12px; font-weight: 800; cursor: pointer;
@@ -25,6 +25,20 @@
     input[type=text], input[type=password] {
       padding: 10px; border: 1px solid #d1d5db; border-radius: 12px;
       background: #fff; width: 100%; box-sizing: border-box; font-size: .95rem; margin-bottom: 14px; }
+    .toolbar { display: flex; gap: 8px; margin-bottom: 10px; }
+    .toolbar button { padding: 6px 10px; font-size: .85rem; border-radius: 10px; border: 1px solid #cbd5e1;
+                       background: #fff; color: #334155; cursor: pointer; font-weight: 700; }
+    .account-list { border: 1px solid #e5e7eb; border-radius: 14px; padding: 6px 14px; margin-bottom: 16px;
+                     max-height: 420px; overflow-y: auto; }
+    .account-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0;
+                    border-bottom: 1px solid #f1f5f9; }
+    .account-row:last-child { border-bottom: none; }
+    .account-row input[type=checkbox] { margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; }
+    .account-name { font-weight: 700; font-size: .95rem; }
+    .repo-info { font-size: .85rem; color: #64748b; margin-top: 2px; word-break: break-word; }
+    .repo-info.error { color: #dc2626; }
+    .repo-count { display: inline-block; background: #eef2ff; color: #4338ca; border-radius: 999px;
+                   padding: 1px 9px; font-size: .78rem; font-weight: 700; margin-left: 6px; }
   </style>
 </head>
 <body>
@@ -43,18 +57,53 @@
     <div class="warn-box">
       <p>⚠️ この操作は取り消せません。実行前に確認してください。</p>
       <ul>
-        <li>対象は user01-practice 〜 user15-practice の15アカウントのみです</li>
-        <li>各アカウントの全リポジトリを削除します</li>
+        <li>チェックしたアカウントの全リポジトリを削除します</li>
         <li>GitHubアカウント自体は残ります</li>
+        <li>対象は user01-practice 〜 user15-practice の15アカウントに限られます</li>
       </ul>
     </div>
 
     <form method="post" action="{{ url_for('reset_github_practice_post') }}"
-          onsubmit="return confirm('練習用GitHubアカウント（user01-practice〜user15-practice）の全リポジトリを削除します。本当によいですか？')">
+          onsubmit="return confirm('チェックしたアカウントの全リポジトリを削除します。本当によいですか？')">
+
+      <div class="toolbar">
+        <button type="button" onclick="toggleAll(true)">全て選択</button>
+        <button type="button" onclick="toggleAll(false)">全て解除</button>
+      </div>
+
+      <div class="account-list">
+        {% for acc in accounts %}
+        <div class="account-row">
+          <input type="checkbox" name="accounts" value="{{ acc.username }}" id="acc_{{ acc.username }}">
+          <div>
+            <label for="acc_{{ acc.username }}" style="margin:0;">
+              <span class="account-name">{{ acc.username }}</span>
+              {% if not acc.error %}<span class="repo-count">{{ acc.repos|length }}件</span>{% endif %}
+            </label>
+            {% if acc.error %}
+              <div class="repo-info error">{{ acc.error }}</div>
+            {% elif acc.repos %}
+              <div class="repo-info">{{ acc.repos|join(', ') }}</div>
+            {% else %}
+              <div class="repo-info">リポジトリなし</div>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
       <label for="reset_key">Reset Key</label>
       <input type="password" id="reset_key" name="reset_key" placeholder="Reset Key を入力" required autocomplete="off">
-      <button class="btn danger" type="submit">🗑 全リポジトリを削除して初期化</button>
+      <button class="btn danger" type="submit">🗑 選択したアカウントを初期化</button>
     </form>
   </div>
+
+  <script>
+    function toggleAll(checked) {
+      document.querySelectorAll('input[name="accounts"]').forEach(function (cb) {
+        cb.checked = checked;
+      });
+    }
+  </script>
 </body>
 </html>

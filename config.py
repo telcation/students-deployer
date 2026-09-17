@@ -209,6 +209,10 @@ MAIL_USERS_FILE    = os.environ.get("MAIL_USERS_FILE",    "")
 # "user" のようなシステム管理用ユーザーを誤削除しないために設定する
 MAIL_EXCLUDE_USERS = os.environ.get("MAIL_EXCLUDE_USERS", "user,ubuntu,root")
 
+# メールボックスリセットの対象を user01〜user15 の15個限定に絞り込む許可リスト
+# （検出結果がこの一覧に含まれるものだけを画面に表示・削除対象にする）
+MAIL_PRACTICE_USERS = [f"user{i:02d}" for i in range(1, 16)]
+
 # -----------------------
 # Helpers
 # -----------------------

@@ -762,7 +762,27 @@ def _github_delete_repo(full_name: str, token: str) -> None:
 @app.get(f"{URL_PREFIX}/reset_github_practice")
 @teacher_login_required
 def reset_github_practice_get():
-    return render_template("teacher_reset_github_practice.html")
+    users = getattr(config, "GITHUB_PRACTICE_USERS", []) or []
+    pats = getattr(config, "GITHUB_PRACTICE_PATS", {}) or {}
+
+    accounts = []
+    for username in users:
+        token = (pats.get(username) or "").strip()
+        if not token:
+            accounts.append({
+                "username": username,
+                "repos": [],
+                "error": "PAT未設定",
+            })
+            continue
+        try:
+            repo_full_names = _github_list_own_repos(token)
+            repo_names = [f.split("/", 1)[-1] for f in repo_full_names]
+            accounts.append({"username": username, "repos": repo_names, "error": None})
+        except Exception as e:
+            accounts.append({"username": username, "repos": [], "error": f"取得失敗: {e}"})
+
+    return render_template("teacher_reset_github_practice.html", accounts=accounts)
 
 
 @app.post(f"{URL_PREFIX}/reset_github_practice")
@@ -774,10 +794,14 @@ def reset_github_practice_post():
         return redirect(f"{URL_PREFIX}/reset_github_practice")
 
     pats = getattr(config, "GITHUB_PRACTICE_PATS", {}) or {}
-    users = getattr(config, "GITHUB_PRACTICE_USERS", []) or []
+    all_users = set(getattr(config, "GITHUB_PRACTICE_USERS", []) or [])
+
+    selected = request.form.getlist("accounts")
+    # 既知のアカウント一覧との積集合のみを対象にする（フォーム改ざん対策）
+    users = [u for u in selected if u in all_users]
 
     if not users:
-        flash("GITHUB_PRACTICE_USERS が設定されていません", "error")
+        flash("対象アカウントを1つ以上選択してください", "error")
         return redirect(f"{URL_PREFIX}/reset_github_practice")
 
     logs = []
@@ -814,18 +838,67 @@ def reset_github_practice_post():
         flash("一部エラー:\n" + "\n".join(errors), "error")
     if logs:
         flash("GitHub 練習用アカウント初期化完了:\n" + "\n".join(logs), "ok")
-    elif not errors:
-        flash("対象アカウントが見つかりませんでした", "error")
 
     return redirect(f"{URL_PREFIX}/reset_github_practice")
 
 
 # ---- メールボックス リセット ----
 
+def _detect_mail_users() -> tuple[str, str, str, list[str]]:
+    """(host, ssh_user, maildir_base, mail_users) を返す。host が空なら未設定。"""
+    host         = getattr(config, "MAIL_SSH_HOST",      "")
+    user         = getattr(config, "MAIL_SSH_USER",      "ubuntu")
+    maildir_base = getattr(config, "MAIL_MAILDIR_BASE",  "/home")
+    users_file   = getattr(config, "MAIL_USERS_FILE",    "")
+    # 除外ユーザー（カンマ区切り）。"user" のようなシステムユーザーを誤削除しないために使う
+    exclude_raw  = getattr(config, "MAIL_EXCLUDE_USERS", "user,ubuntu,root")
+    exclude_set  = {u.strip() for u in exclude_raw.split(",") if u.strip()}
+
+    if not host:
+        return host, user, maildir_base, []
+
+    if users_file:
+        # ファイルから取得（1行1ユーザー）
+        rc, out, err = _ssh_run(host, user, f"cat {users_file}")
+        if rc != 0:
+            raise RuntimeError(f"ユーザーファイル読み込み失敗: {err}")
+        mail_users = [u.strip() for u in out.splitlines()
+                      if u.strip() and u.strip() not in exclude_set]
+    else:
+        # Maildir が存在するホームディレクトリのユーザーを自動検出
+        rc, out, err = _ssh_run(host, user,
+            f"sudo find {maildir_base} -maxdepth 2 -name 'Maildir' -type d 2>/dev/null")
+        if rc != 0:
+            raise RuntimeError(f"Maildir 検索失敗: {err}")
+        mail_users = []
+        base_depth = len(maildir_base.rstrip("/").split("/"))
+        for path in out.splitlines():
+            parts = path.strip().split("/")
+            if len(parts) > base_depth:
+                detected = parts[base_depth]
+                if detected and detected not in exclude_set:
+                    mail_users.append(detected)
+
+    # user01〜user15 の許可リストに含まれるものだけに絞り込む
+    allowed = set(getattr(config, "MAIL_PRACTICE_USERS", []) or [])
+    mail_users = [u for u in mail_users if u in allowed]
+
+    return host, user, maildir_base, sorted(mail_users)
+
+
 @app.get(f"{URL_PREFIX}/reset_mail")
 @teacher_login_required
 def reset_mail_get():
-    return render_template("teacher_reset_mail.html")
+    try:
+        host, _, _, mail_users = _detect_mail_users()
+    except Exception as e:
+        flash(f"メールユーザー一覧の取得に失敗: {e}", "error")
+        host, mail_users = "", []
+
+    if not host:
+        flash("MAIL_SSH_HOST が設定されていません", "error")
+
+    return render_template("teacher_reset_mail.html", mail_users=mail_users)
 
 
 @app.post(f"{URL_PREFIX}/reset_mail")
@@ -836,60 +909,45 @@ def reset_mail_post():
         flash("Reset Key が違います", "error")
         return redirect(f"{URL_PREFIX}/reset_mail")
 
-    host         = getattr(config, "MAIL_SSH_HOST",      "")
-    user         = getattr(config, "MAIL_SSH_USER",      "ubuntu")
-    maildir_base = getattr(config, "MAIL_MAILDIR_BASE",  "/home")
-    users_file   = getattr(config, "MAIL_USERS_FILE",    "")
-    # 除外ユーザー（カンマ区切り）。"user" のようなシステムユーザーを誤削除しないために使う
-    exclude_raw  = getattr(config, "MAIL_EXCLUDE_USERS", "user,ubuntu,root")
-    exclude_set  = {u.strip() for u in exclude_raw.split(",") if u.strip()}
+    selected = request.form.getlist("accounts")
+    if not selected:
+        flash("対象ユーザーを1つ以上選択してください", "error")
+        return redirect(f"{URL_PREFIX}/reset_mail")
+
+    try:
+        host, ssh_user, maildir_base, detected_users = _detect_mail_users()
+    except Exception as e:
+        flash(f"メールユーザー一覧の取得に失敗: {e}", "error")
+        return redirect(f"{URL_PREFIX}/reset_mail")
 
     if not host:
         flash("MAIL_SSH_HOST が設定されていません", "error")
         return redirect(f"{URL_PREFIX}/reset_mail")
 
+    # 検出済みユーザーとの積集合のみを対象にする（フォーム改ざん対策）
+    detected_set = set(detected_users)
+    mail_users = [u for u in selected if u in detected_set]
+
+    if not mail_users:
+        flash("選択されたユーザーが対象一覧に見つかりませんでした", "error")
+        return redirect(f"{URL_PREFIX}/reset_mail")
+
     logs = []
     errors = []
 
-    try:
-        # ユーザー一覧取得
-        if users_file:
-            # ファイルから取得（1行1ユーザー）
-            rc, out, err = _ssh_run(host, user, f"cat {users_file}")
-            if rc != 0:
-                raise RuntimeError(f"ユーザーファイル読み込み失敗: {err}")
-            mail_users = [u.strip() for u in out.splitlines()
-                          if u.strip() and u.strip() not in exclude_set]
-        else:
-            # Maildir が存在するホームディレクトリのユーザーを自動検出
-            rc, out, err = _ssh_run(host, user,
-                f"sudo find {maildir_base} -maxdepth 2 -name 'Maildir' -type d 2>/dev/null")
-            if rc != 0:
-                raise RuntimeError(f"Maildir 検索失敗: {err}")
-            # /home/<user>/Maildir → <user> を取り出す
-            mail_users = []
-            base_depth = len(maildir_base.rstrip("/").split("/"))
-            for path in out.splitlines():
-                parts = path.strip().split("/")
-                if len(parts) > base_depth:
-                    detected = parts[base_depth]
-                    if detected and detected not in exclude_set:
-                        mail_users.append(detected)
+    for mail_user in mail_users:
+        user_maildir = f"{maildir_base}/{mail_user}/Maildir"
+        rc, out, err = _ssh_run(host, ssh_user,
+            f"sudo find {user_maildir} -mindepth 1 -type f -delete 2>&1")
+        if rc != 0:
+            errors.append(f"{mail_user}: 削除失敗 - {err or out}")
+            continue
+        logs.append(mail_user)
 
-        if not mail_users:
-            flash("削除対象メールユーザーが見つかりませんでした", "error")
-            return redirect(f"{URL_PREFIX}/reset_mail")
-
-        # 専用スクリプトで全ユーザーのメールを一括削除
-        rc, out, err = _ssh_run(host, user, "sudo /usr/local/bin/clear_mailboxes.sh")
-        if "ok" not in out:
-            flash(f"メールボックスクリアに失敗: {err}", "error")
-            return redirect(f"{URL_PREFIX}/reset_mail")
-
-        flash(f"メールボックスクリア完了: {len(mail_users)} ユーザー（{', '.join(mail_users)}）", "ok")
-
-    except Exception as e:
-        flash(f"メールリセットに失敗: {e}", "error")
+    if errors:
+        flash("一部エラー:\n" + "\n".join(errors), "error")
+    if logs:
+        flash(f"メールボックスクリア完了: {len(logs)} ユーザー（{', '.join(logs)}）", "ok")
 
     return redirect(f"{URL_PREFIX}/reset_mail")
 

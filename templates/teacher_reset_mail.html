@@ -7,7 +7,7 @@
   <style>
     body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #f8fafc; margin: 18px; }
     .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 24px;
-            box-shadow: 0 8px 22px rgba(2,6,23,.06); max-width: 560px; margin: 40px auto; }
+            box-shadow: 0 8px 22px rgba(2,6,23,.06); max-width: 640px; margin: 40px auto; }
     .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     h1 { margin: 0; font-size: 1.2rem; }
     .btn { padding: 10px 14px; border: 0; border-radius: 12px; font-weight: 800; cursor: pointer;
@@ -25,6 +25,17 @@
     input[type=text], input[type=password] {
       padding: 10px; border: 1px solid #d1d5db; border-radius: 12px;
       background: #fff; width: 100%; box-sizing: border-box; font-size: .95rem; margin-bottom: 14px; }
+    .toolbar { display: flex; gap: 8px; margin-bottom: 10px; }
+    .toolbar button { padding: 6px 10px; font-size: .85rem; border-radius: 10px; border: 1px solid #cbd5e1;
+                       background: #fff; color: #334155; cursor: pointer; font-weight: 700; }
+    .account-list { border: 1px solid #e5e7eb; border-radius: 14px; padding: 6px 14px; margin-bottom: 16px;
+                     max-height: 420px; overflow-y: auto; }
+    .account-row { display: flex; align-items: center; gap: 10px; padding: 9px 0;
+                    border-bottom: 1px solid #f1f5f9; }
+    .account-row:last-child { border-bottom: none; }
+    .account-row input[type=checkbox] { width: 18px; height: 18px; flex-shrink: 0; }
+    .account-name { font-weight: 700; font-size: .95rem; }
+    .empty-note { color: #64748b; font-size: .9rem; padding: 10px 0; }
   </style>
 </head>
 <body>
@@ -43,18 +54,46 @@
     <div class="warn-box">
       <p>⚠️ この操作は取り消せません。実行前に確認してください。</p>
       <ul>
-        <li>受講者全員のメールボックス内のメールをすべて削除します</li>
+        <li>チェックしたユーザーのメールボックス内のメールをすべて削除します</li>
         <li>アカウント（メールアドレス・パスワード）は残ります</li>
         <li>Maildir フォルダ構造（cur/new/tmp）は保持されます</li>
+        <li>対象は user01 〜 user15 の15アカウントに限られます</li>
       </ul>
     </div>
 
     <form method="post" action="{{ url_for('reset_mail_post') }}"
-          onsubmit="return confirm('全受講者のメールボックスをクリアします。本当によいですか？')">
+          onsubmit="return confirm('チェックしたユーザーのメールボックスをクリアします。本当によいですか？')">
+
+      <div class="toolbar">
+        <button type="button" onclick="toggleAll(true)">全て選択</button>
+        <button type="button" onclick="toggleAll(false)">全て解除</button>
+      </div>
+
+      <div class="account-list">
+        {% for u in mail_users %}
+        <div class="account-row">
+          <input type="checkbox" name="accounts" value="{{ u }}" id="mu_{{ u }}">
+          <label for="mu_{{ u }}" style="margin:0;">
+            <span class="account-name">{{ u }}</span>
+          </label>
+        </div>
+        {% else %}
+        <div class="empty-note">対象ユーザーが見つかりませんでした</div>
+        {% endfor %}
+      </div>
+
       <label for="reset_key">Reset Key</label>
       <input type="password" id="reset_key" name="reset_key" placeholder="Reset Key を入力" required autocomplete="off">
-      <button class="btn danger" type="submit">🗑 全メールボックスをクリア</button>
+      <button class="btn danger" type="submit">🗑 選択したユーザーのメールをクリア</button>
     </form>
   </div>
+
+  <script>
+    function toggleAll(checked) {
+      document.querySelectorAll('input[name="accounts"]').forEach(function (cb) {
+        cb.checked = checked;
+      });
+    }
+  </script>
 </body>
 </html>
