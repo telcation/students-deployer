@@ -328,6 +328,11 @@
                 <a class="btnlink" href="{{ url_prefix }}/report/{{ r.id }}" target="_blank">チェックレポート</a>
               </div>
               {% endif %}
+              {% if r.status in ("done", "public", "stopped") and r.request_kind in ("flask", "streamlit", "spring") %}
+              <div class="small" style="margin-top:6px;">
+                <a class="btnlink" href="{{ url_prefix }}/logs/{{ r.id }}" target="_blank">ログを見る</a>
+              </div>
+              {% endif %}
               {% else %}
               <div class="small muted">未アップロード</div>
               {% endif %}

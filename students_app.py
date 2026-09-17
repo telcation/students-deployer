@@ -892,6 +892,60 @@ def students_report(request_id: int):
     return send_file(report, mimetype="text/html", as_attachment=False)
 
 
+def _tail_file(path: Path, max_bytes: int = 50_000) -> str:
+    """ファイル末尾を安全に読む（クラッシュループ等で巨大化したerror.log対策）。"""
+    if not path.exists():
+        return "(ログファイルがまだありません)"
+    try:
+        size = path.stat().st_size
+        with path.open("rb") as f:
+            if size > max_bytes:
+                f.seek(size - max_bytes)
+                f.readline()  # 行の途中から読み始めないよう先頭の半端な1行を捨てる
+            data = f.read()
+        return data.decode("utf-8", errors="replace")
+    except Exception as e:
+        return f"(ログの読み込みに失敗しました: {e})"
+
+
+@app.get(f"{URL_PREFIX}/logs/<int:request_id>")
+@login_required
+def students_logs(request_id: int):
+    """
+    受講者本人が、自分のアプリの error.log / access.log と
+    現在の稼働状態を確認できるページ。
+    公開中なのに動いていない、といった不具合を自分で調査できるようにするための機能。
+    """
+    student_id = session["student_id"]
+    row = requests_db.get_by_id(REQUESTS_DB_PATH, request_id)
+    if not row or row.student_id != student_id:
+        return _render_with_msg("そのアプリのログは見られません。", student_id)
+
+    if row.request_kind not in ("flask", "streamlit", "spring"):
+        return _render_with_msg("この種別のアプリにはログ機能がありません。", student_id)
+
+    term = _term_of(student_id)
+    service_name, app_dir = _service_and_appdir(term, student_id, row.app_name, row.request_kind)
+    log_dir = Path(app_dir) / "logs"
+
+    service_state = _get_service_state(service_name)
+
+    error_log = _tail_file(log_dir / "error.log")
+    access_log = _tail_file(log_dir / "access.log", max_bytes=10_000)
+
+    return render_template(
+        "students_logs.html",
+        student_id=student_id,
+        url_prefix=URL_PREFIX,
+        request_id=request_id,
+        app_name=row.app_name,
+        request_kind=row.request_kind,
+        service_state=service_state,
+        error_log=error_log,
+        access_log=access_log,
+    )
+
+
 @app.get(f"{URL_PREFIX}/")
 @login_required
 def students_dashboard():
