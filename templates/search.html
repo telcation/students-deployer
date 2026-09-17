@@ -24,7 +24,7 @@
             <p class="is-size-6 mb-4">{{ row.app_desc or '概要なし' }}</p>
 
             <div class="buttons">
-                <a href="{{ url_for('app_detail', request_id=row.id) }}" class="button is-small is-info is-outlined">
+                <a href="{{ url_for('app_detail', request_id=row.id, q=query) }}" class="button is-small is-info is-outlined">
                     <span class="icon"><i class="far fa-comments"></i></span>
                     <span>コメント・掲示板を開く</span>
                 </a>
