@@ -176,25 +176,18 @@ LINE_NOTIFY_PREFIX = os.environ.get("LINE_NOTIFY_PREFIX", "【受講者デプロ
 RESET_KEY = os.environ.get("RESET_KEY", "")
 
 # -----------------------
-# NextCloud リセット
+# 練習用 GitHub アカウント初期化
 # -----------------------
-# SSH でアクセスする NextCloud サーバーの IP またはホスト名
-NEXTCLOUD_SSH_HOST = os.environ.get("NEXTCLOUD_SSH_HOST", "192.168.3.201")
+# 初期化対象の GitHub ユーザー名（user01-practice 〜 user15-practice の15個限定）
+GITHUB_PRACTICE_USERS = [f"user{i:02d}-practice" for i in range(1, 16)]
 
-# SSH ログインユーザー（sudo 権限が必要）
-NEXTCLOUD_SSH_USER = os.environ.get("NEXTCLOUD_SSH_USER", "ksk")
-
-# PHP バイナリのパス（occ の実行に使用）
-NEXTCLOUD_OCC_PHP  = os.environ.get("NEXTCLOUD_OCC_PHP",  "/usr/bin/php")
-
-# occ コマンドのパス
-NEXTCLOUD_OCC_PATH = os.environ.get("NEXTCLOUD_OCC_PATH", "/var/www/nextcloud/occ")
-
-# NextCloud の実行ユーザー（occ を sudo -u で実行するユーザー）
-NEXTCLOUD_WEBROOT  = os.environ.get("NEXTCLOUD_WEBROOT",  "www-data")
-
-# NextCloud データディレクトリ（`occ config:system:get datadirectory` で確認）
-NEXTCLOUD_DATA_DIR = os.environ.get("NEXTCLOUD_DATA_DIR", "/mnt/share/nextcloud")
+# 各アカウント自身の PAT（delete_repo スコープが必要）
+# 環境変数 GITHUB_PAT_USER01_PRACTICE 〜 GITHUB_PAT_USER15_PRACTICE から読み込む。
+# 練習用アカウントのみを対象とするため、トークンの取り扱い自体の厳格な保護は求めない運用とする。
+GITHUB_PRACTICE_PATS = {
+    username: os.environ.get(f"GITHUB_PAT_{username.upper().replace('-', '_')}", "")
+    for username in GITHUB_PRACTICE_USERS
+}
 
 # -----------------------
 # メールボックスリセット

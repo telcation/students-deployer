@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>講師 - NextCloud リセット</title>
+  <title>講師 - 練習用GitHubアカウント初期化</title>
   <style>
     body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #f8fafc; margin: 18px; }
     .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 24px;
@@ -30,7 +30,7 @@
 <body>
   <div class="card">
     <div class="header-row">
-      <h1>☁️ NextCloud リセット</h1>
+      <h1>🐙 練習用GitHubアカウント初期化</h1>
       <a class="btn secondary" href="{{ url_for('teacher_menu') }}">← メニューへ</a>
     </div>
 
@@ -43,17 +43,17 @@
     <div class="warn-box">
       <p>⚠️ この操作は取り消せません。実行前に確認してください。</p>
       <ul>
-        <li>全ユーザーの保存ファイルをすべて削除します</li>
-        <li>アカウント（ユーザー名・パスワード）は残ります</li>
-        <li>admin アカウントは対象外です</li>
+        <li>対象は user01-practice 〜 user15-practice の15アカウントのみです</li>
+        <li>各アカウントの全リポジトリを削除します</li>
+        <li>GitHubアカウント自体は残ります</li>
       </ul>
     </div>
 
-    <form method="post" action="{{ url_for('reset_nextcloud_post') }}"
-          onsubmit="return confirm('NextCloud の全ユーザーファイルを削除します。本当によいですか？')">
+    <form method="post" action="{{ url_for('reset_github_practice_post') }}"
+          onsubmit="return confirm('練習用GitHubアカウント（user01-practice〜user15-practice）の全リポジトリを削除します。本当によいですか？')">
       <label for="reset_key">Reset Key</label>
       <input type="password" id="reset_key" name="reset_key" placeholder="Reset Key を入力" required autocomplete="off">
-      <button class="btn danger" type="submit">🗑 全ユーザーファイルを削除して初期化</button>
+      <button class="btn danger" type="submit">🗑 全リポジトリを削除して初期化</button>
     </form>
   </div>
 </body>

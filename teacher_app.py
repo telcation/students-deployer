@@ -18,6 +18,8 @@ from flask import Flask, request, render_template, redirect, url_for, session, a
 import re
 import subprocess
 
+import requests
+
 import config
 import requests_db
 import ids_ports
@@ -683,13 +685,10 @@ def accounts_view():
 # ---------------------------------------------------------------------------
 # config.py に以下を追加して使用:
 #
-#   NEXTCLOUD_SSH_HOST  = os.environ.get("NEXTCLOUD_SSH_HOST", "192.168.x.x")
-#   NEXTCLOUD_SSH_USER  = os.environ.get("NEXTCLOUD_SSH_USER", "ubuntu")
-#   NEXTCLOUD_OCC_PHP   = os.environ.get("NEXTCLOUD_OCC_PHP",  "/usr/bin/php")
-#   NEXTCLOUD_OCC_PATH  = os.environ.get("NEXTCLOUD_OCC_PATH", "/var/www/nextcloud/occ")
-#   NEXTCLOUD_WEBROOT   = os.environ.get("NEXTCLOUD_WEBROOT",  "www-data")
-#   NEXTCLOUD_DATA_DIR  = os.environ.get("NEXTCLOUD_DATA_DIR", "/var/nextcloud_data")
-#   RESET_KEY           = os.environ.get("RESET_KEY", "")
+#   RESET_KEY              = os.environ.get("RESET_KEY", "")
+#
+#   GITHUB_PRACTICE_USERS  = [f"user{i:02d}-practice" for i in range(1, 16)]  # user01-practice〜user15-practice
+#   GITHUB_PRACTICE_PATS   = {username: os.environ.get(f"GITHUB_PAT_{...}", "") ...}  # 各アカウント自身のPAT（delete_repoスコープ）
 #
 #   MAIL_SSH_HOST       = os.environ.get("MAIL_SSH_HOST", "telcation.com")
 #   MAIL_SSH_USER       = os.environ.get("MAIL_SSH_USER", "ubuntu")
@@ -712,86 +711,113 @@ def _get_reset_key() -> str:
     return (getattr(config, "RESET_KEY", "") or "").strip()
 
 
-# ---- NextCloud リセット ----
+# ---- 練習用 GitHub アカウント初期化 ----
 
-@app.get(f"{URL_PREFIX}/reset_nextcloud")
+_GITHUB_API = "https://api.github.com"
+
+
+def _github_headers(token: str) -> dict:
+    return {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+
+def _github_list_own_repos(token: str) -> list[str]:
+    """トークンの持ち主自身の全リポジトリ full_name を返す（private含む・ページネーション対応）。"""
+    repos: list[str] = []
+    page = 1
+    while True:
+        resp = requests.get(
+            f"{_GITHUB_API}/user/repos",
+            headers=_github_headers(token),
+            params={"per_page": 100, "page": page, "affiliation": "owner"},
+            timeout=15,
+        )
+        if resp.status_code != 200:
+            raise RuntimeError(f"リポジトリ一覧取得失敗（{resp.status_code}）: {resp.text[:200]}")
+        batch = resp.json()
+        if not batch:
+            break
+        repos.extend(r["full_name"] for r in batch)
+        if len(batch) < 100:
+            break
+        page += 1
+        if page > 20:  # 安全弁（想定外の無限ループ防止）
+            break
+    return repos
+
+
+def _github_delete_repo(full_name: str, token: str) -> None:
+    resp = requests.delete(
+        f"{_GITHUB_API}/repos/{full_name}",
+        headers=_github_headers(token),
+        timeout=15,
+    )
+    if resp.status_code not in (204, 404):
+        raise RuntimeError(f"削除失敗（{resp.status_code}）: {resp.text[:200]}")
+
+
+@app.get(f"{URL_PREFIX}/reset_github_practice")
 @teacher_login_required
-def reset_nextcloud_get():
-    return render_template("teacher_reset_nextcloud.html")
+def reset_github_practice_get():
+    return render_template("teacher_reset_github_practice.html")
 
 
-@app.post(f"{URL_PREFIX}/reset_nextcloud")
+@app.post(f"{URL_PREFIX}/reset_github_practice")
 @teacher_login_required
-def reset_nextcloud_post():
+def reset_github_practice_post():
     reset_key = (request.form.get("reset_key") or "").strip()
     if not _get_reset_key() or reset_key != _get_reset_key():
         flash("Reset Key が違います", "error")
-        return redirect(f"{URL_PREFIX}/reset_nextcloud")
+        return redirect(f"{URL_PREFIX}/reset_github_practice")
 
-    host      = getattr(config, "NEXTCLOUD_SSH_HOST", "")
-    user      = getattr(config, "NEXTCLOUD_SSH_USER", "ubuntu")
-    php       = getattr(config, "NEXTCLOUD_OCC_PHP",  "/usr/bin/php")
-    occ       = getattr(config, "NEXTCLOUD_OCC_PATH", "/var/www/nextcloud/occ")
-    webroot   = getattr(config, "NEXTCLOUD_WEBROOT",  "www-data")
-    data_dir  = getattr(config, "NEXTCLOUD_DATA_DIR", "/var/nextcloud_data")
+    pats = getattr(config, "GITHUB_PRACTICE_PATS", {}) or {}
+    users = getattr(config, "GITHUB_PRACTICE_USERS", []) or []
 
-    if not host:
-        flash("NEXTCLOUD_SSH_HOST が設定されていません", "error")
-        return redirect(f"{URL_PREFIX}/reset_nextcloud")
+    if not users:
+        flash("GITHUB_PRACTICE_USERS が設定されていません", "error")
+        return redirect(f"{URL_PREFIX}/reset_github_practice")
 
     logs = []
     errors = []
 
-    try:
-        # 1. ユーザー一覧取得（admin を除外）
-        rc, out, err = _ssh_run(host, user,
-            f"sudo -u {webroot} {php} {occ} user:list --output=json 2>/dev/null")
-        if rc != 0:
-            raise RuntimeError(f"user:list 失敗: {err}")
+    for username in users:
+        token = (pats.get(username) or "").strip()
+        if not token:
+            errors.append(f"{username}: PAT が未設定です（GITHUB_PAT_{username.upper().replace('-', '_')}）")
+            continue
 
-        import json as _json
         try:
-            user_map = _json.loads(out)   # {"uid": "display_name", ...}
-            nc_users = [u for u in user_map.keys() if u != "admin"]
-        except Exception:
-            raise RuntimeError(f"user:list のパース失敗: {out[:200]}")
+            repo_full_names = _github_list_own_repos(token)
+        except Exception as e:
+            errors.append(f"{username}: リポジトリ一覧取得に失敗 - {e}")
+            continue
 
-        if not nc_users:
-            flash("削除対象ユーザーが見つかりませんでした（admin のみ）", "error")
-            return redirect(f"{URL_PREFIX}/reset_nextcloud")
+        if not repo_full_names:
+            logs.append(f"{username}（対象リポジトリなし）")
+            continue
 
-        # 2. 各ユーザーのファイルを削除（ホームディレクトリ内 files/ を空にする）
-        for nc_user in nc_users:
-            user_files_dir = f"{data_dir}/{nc_user}/files"
-            # files/ 以下を空にする（ディレクトリ自体は残す）
-            rc, _, err = _ssh_run(host, user,
-                f"sudo find {user_files_dir} -mindepth 1 -delete 2>&1 | head -5")
-            if rc != 0:
-                errors.append(f"{nc_user}: ファイル削除失敗 - {err}")
-                continue
+        deleted = []
+        for full_name in repo_full_names:
+            try:
+                _github_delete_repo(full_name, token)
+                deleted.append(full_name.split("/", 1)[-1])
+            except Exception as e:
+                errors.append(f"{full_name}: 削除失敗 - {e}")
 
-            # 3. occ で DB のファイルキャッシュを更新
-            rc, _, err = _ssh_run(host, user,
-                f"sudo -u {webroot} {php} {occ} files:scan {nc_user} --quiet 2>&1")
-            if rc != 0:
-                errors.append(f"{nc_user}: files:scan 失敗 - {err}")
-                continue
+        if deleted:
+            logs.append(f"{username}（{len(deleted)}件: {', '.join(deleted)}）")
 
-            # 4. ゴミ箱を空にする
-            _ssh_run(host, user,
-                f"sudo -u {webroot} {php} {occ} trashbin:cleanup {nc_user} 2>/dev/null")
+    if errors:
+        flash("一部エラー:\n" + "\n".join(errors), "error")
+    if logs:
+        flash("GitHub 練習用アカウント初期化完了:\n" + "\n".join(logs), "ok")
+    elif not errors:
+        flash("対象アカウントが見つかりませんでした", "error")
 
-            logs.append(nc_user)
-
-        if errors:
-            flash("一部エラー:\n" + "\n".join(errors), "error")
-        if logs:
-            flash(f"NextCloud リセット完了: {len(logs)} ユーザー（{', '.join(logs)}）", "ok")
-
-    except Exception as e:
-        flash(f"NextCloud リセットに失敗: {e}", "error")
-
-    return redirect(f"{URL_PREFIX}/reset_nextcloud")
+    return redirect(f"{URL_PREFIX}/reset_github_practice")
 
 
 # ---- メールボックス リセット ----
