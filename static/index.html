@@ -307,6 +307,7 @@
       background: #0f172a; border-radius: 10px; padding: 14px 16px;
       font-family: var(--mono); font-size: 12px; line-height: 1.7;
       margin-top: 8px; overflow-x: auto;
+      color: #e2e8f0; /* 色付きspanを使わない生テキストでも読めるように既定色を明るく */
     }
     .log-err { color: #f87171; display: block; }
     .log-ok  { color: #4ade80; display: block; }
@@ -332,7 +333,7 @@
       .hero { background: #1d4ed8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .content-card { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
       .section-anchor { page-break-before: auto; }
-      .log-block { background: #0f172a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .log-block { background: #0f172a !important; color: #e2e8f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
 
     /* =====================================================
