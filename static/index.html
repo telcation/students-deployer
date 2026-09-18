@@ -444,6 +444,9 @@
         <a class="nav-item" href="#log-errors">
           <span class="icon">🔍</span> よくあるエラー
         </a>
+        <a class="nav-item" href="#ai-prompt">
+          <span class="icon">🤖</span> AIに相談する時のプロンプト
+        </a>
       </div>
     </nav>
 
@@ -670,6 +673,7 @@
             <li>初回アクセス時に DB が存在しなくても 500 にならないよう、エラーハンドリングがある</li>
             <li><code>requirements.txt</code> に Flask、SQLAlchemy 等すべての依存が記載されている</li>
             <li><code>debug=True</code> が本番（提出用）コードに残っていない</li>
+            <li class="important">自前で <code>ALTER TABLE ... ADD COLUMN</code> を書いている場合、<strong>カラムごとに個別に</strong>存在チェックしている（後述の「よくあるエラーと対処法」参照）</li>
           </ul>
           <div class="callout danger" style="margin-top:14px">
             <span class="callout-icon">🚨</span>
@@ -805,6 +809,32 @@
           <div class="callout info" style="margin-top:14px">
             <span class="callout-icon">💡</span>
             <span><strong>Flask の場合</strong>は <code>url_for('ルート名')</code>、<strong>静的ファイルの場合</strong>は <code>url_for('static', filename='...')</code> を使ってください。</span>
+          </div>
+
+          <div style="margin-top:14px">
+            <p style="font-size:13px; font-weight:700; color:var(--orange); margin-bottom:6px">⚠ 見落としやすい罠：<code>@app.before_request</code> でのログインチェック</p>
+            <p class="card-body">
+              <code>url_for()</code> は正しく使えていても、<code>request.path</code>（現在アクセス中のパス）と比較すると壊れます。
+              <code>request.path</code> には配置先のパス部分が含まれず、<code>url_for()</code> の戻り値には含まれるため、
+              <strong>両者は文字列として一致しません。</strong>
+            </p>
+            <div class="log-block" style="margin-top:8px">
+<span class="log-err">❌ NG例（無限リダイレクトになる）</span>
+<span class="log-err">@app.before_request</span>
+<span class="log-err">def check_auth():</span>
+<span class="log-err">    public_paths = [url_for("login"), url_for("register")]</span>
+<span class="log-err">    if request.path in public_paths:   # ← 絶対に一致しない</span>
+<span class="log-err">        return</span>
+<span class="log-err">    if "user_id" not in session:</span>
+<span class="log-err">        return redirect(url_for("login"))</span>
+<span class="log-ok">✅ OK例（request.endpoint で判定する）</span>
+<span class="log-ok">@app.before_request</span>
+<span class="log-ok">def check_auth():</span>
+<span class="log-ok">    if request.endpoint in ("login", "register", "static"):</span>
+<span class="log-ok">        return</span>
+<span class="log-ok">    if "user_id" not in session:</span>
+<span class="log-ok">        return redirect(url_for("login"))</span>
+            </div>
           </div>
         </div>
       </div>
@@ -986,7 +1016,8 @@
               <div class="step-text">
                 <strong>デプロイ結果を確認する</strong><br />
                 アップロード後、自動的にデプロイが開始されます。<br />
-                しばらく待ってからログを確認してください。エラーが出ている場合は内容を読んで対応し、<strong>解決できない場合はログをそのまま講師に貼り付けてください。</strong>
+                しばらく待ってから、ダッシュボードの対象アプリにある<strong>「ログを見る」</strong>リンクを開いて確認してください。
+                エラーが出ている場合は内容を読んで対応し、<strong>解決できない場合はログをそのまま講師に貼り付けてください。</strong>
               </div>
             </div>
           </div>
@@ -1010,6 +1041,17 @@
 
         <div class="section-hint">
           デプロイに失敗したとき、ログに <strong>原因が書かれています。</strong> 最後まで読んでください。途中でやめない。
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker blue">まずここ</div>
+          <div class="card-title">ログはどこで見る？</div>
+          <p class="card-body" style="margin-top:8px">
+            <a href="/students/" style="color:var(--blue)">デプロイアプリ</a>のダッシュボードで、対象アプリの
+            <strong>「ログを見る」</strong>リンクを開いてください。<code>error.log</code>（直近のエラー）と
+            <code>access.log</code>、現在の稼働状態（active / stopped など）がその場で確認できます。
+            講師に問い合わせる前に、まずここを自分で確認してください。
+          </p>
         </div>
 
         <div class="content-card">
@@ -1100,6 +1142,85 @@
             DBパスに絶対パスを使っていないか確認。</span>
           </div>
         </div>
+
+        <div class="content-card">
+          <div class="card-kicker red">Flask + DB エラー</div>
+          <div class="card-title">sqlite3.OperationalError: duplicate column name: xxx</div>
+          <p class="card-body" style="margin-top:6px">
+            <code>ALTER TABLE ... ADD COLUMN</code> による自前のマイグレーション処理が、
+            <strong>すでにカラムが存在する状態で再実行</strong>されると発生します。再起動のたびに毎回実行されるコードなので、
+            1回でも成功すると次の起動から必ず失敗するようになります。
+          </p>
+          <div class="log-block" style="margin-top:10px">
+<span class="log-err">❌ NG例（1個のカラムの有無で複数カラムをまとめて追加）</span>
+<span class="log-err">if 'day_of_week' not in event_cols:</span>
+<span class="log-err">    c.execute("ALTER TABLE events ADD COLUMN day_of_week TEXT")</span>
+<span class="log-err">    c.execute("ALTER TABLE events ADD COLUMN day_time TEXT")  # ← 2回目でここが重複エラー</span>
+<span class="log-ok">✅ OK例（カラムごとに個別チェック）</span>
+<span class="log-ok">for col_name, col_type in [("day_of_week", "TEXT"), ("day_time", "TEXT")]:</span>
+<span class="log-ok">    if col_name not in event_cols:</span>
+<span class="log-ok">        c.execute(f"ALTER TABLE events ADD COLUMN {col_name} {col_type}")</span>
+          </div>
+          <div class="callout ok" style="margin-top:10px">
+            <span class="callout-icon">✅</span>
+            <span><strong>対処：</strong>マイグレーション処理はカラム単位で個別に存在チェックする（何度実行しても安全＝冪等にする）。</span>
+          </div>
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker red">Flask エラー</div>
+          <div class="card-title">ERR_TOO_MANY_REDIRECTS（リダイレクトの回数が多すぎます）</div>
+          <p class="card-body" style="margin-top:6px">
+            <code>@app.before_request</code> でのログイン判定に <code>request.path</code> と <code>url_for()</code> の比較を使っていると発生します。
+            詳しくは「相対パス問題」の章を参照してください。
+          </p>
+          <div class="callout ok" style="margin-top:10px">
+            <span class="callout-icon">✅</span>
+            <span><strong>対処：</strong>パスの文字列比較ではなく <code>request.endpoint</code> で判定する。</span>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ================================================
+           5. AIに相談する時のプロンプト
+      ================================================ -->
+      <div class="section-anchor" id="ai-prompt">
+        <div class="section-head">
+          <span class="s-icon">🤖</span>
+          <h2>AIに相談する時のプロンプト</h2>
+        </div>
+
+        <div class="section-hint">
+          ChatGPT・Claude・GitHub Copilot などに相談するときは、まず下のテキストをそのまま貼り付けてください。
+          このサーバーが<strong>サブパス配下でリバースプロキシする特殊な構成</strong>であることをAIに伝えないと、
+          一般的なFlaskの書き方（このマニュアルで挙げた「相対パス問題」「request.path比較」等）を提案されてしまい、
+          ローカルでは動くのにサーバーでは動かないコードになりがちです。
+        </div>
+
+        <div class="content-card">
+          <div class="card-kicker blue">コピペ用</div>
+          <div class="card-title">最初に貼り付ける前提説明</div>
+          <div class="log-block" id="ai-prompt-text" style="margin-top:10px; white-space:pre-wrap;">このFlaskアプリは、学校の学習用サーバー上で以下のようにサブパス配下にリバースプロキシされてデプロイされます。
+
+- 公開URLの形式: /f/&lt;学期&gt;/&lt;学生番号&gt;/&lt;アプリ名&gt;/ のような深いパス配下（例: /f/2026-05/260505/myapp/）
+- nginxがこのプレフィックスを剥がしてからアプリに渡すため、Flask側の request.path にはプレフィックスは含まれない
+- 一方 url_for() や redirect(url_for(...)) はプレフィックスを含んだ絶対パスを返す（SCRIPT_NAME経由）
+- そのため request.path と url_for() の戻り値を文字列で比較すると一致しない（@app.before_request でのログイン判定などで無限リダイレクトの原因になる）
+- app.py の中には Flask のインスタンスを app という名前でトップレベルに定義する必要がある（gunicornが app:app として読み込むため）
+- ポート番号やホストのハードコードはしない（app.run() の呼び出しは if __name__ == "__main__": の中だけに留め、本番はgunicornが起動する）
+- DBのマイグレーション処理（ALTER TABLE等）は、サーバー再起動のたびに毎回実行される前提で、何度実行しても安全（冪等）になるように書く
+
+この前提を踏まえた上で、次の内容について相談したいです。
+（ここに実際に聞きたいこと・エラーメッセージ・該当コードを続けて書いてください）</div>
+          <button class="btn primary" style="margin-top:12px" onclick="copyAiPrompt(this)">📋 コピーする</button>
+
+          <div class="callout info" style="margin-top:14px">
+            <span class="callout-icon">💡</span>
+            <span>エラーが出ている場合は、上の前提説明のあとに、ダッシュボードの「ログを見る」で確認した
+            <code>error.log</code> の該当箇所（<code>Traceback</code>の部分）もそのまま貼り付けると、より的確な回答が得られます。</span>
+          </div>
+        </div>
       </div>
 
     </main>
@@ -1110,6 +1231,18 @@
   </footer>
 
   <script>
+    // AIプロンプトのコピー
+    function copyAiPrompt(btn) {
+      const text = document.getElementById('ai-prompt-text').innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const original = btn.textContent;
+        btn.textContent = '✅ コピーしました';
+        setTimeout(() => { btn.textContent = original; }, 2000);
+      }).catch(() => {
+        alert('コピーに失敗しました。テキストを選択して手動でコピーしてください。');
+      });
+    }
+
     // 今日の日付
     const d = new Date();
     document.getElementById('today').textContent =
