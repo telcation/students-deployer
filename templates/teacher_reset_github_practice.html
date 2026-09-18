@@ -58,13 +58,14 @@
       <p>⚠️ この操作は取り消せません。実行前に確認してください。</p>
       <ul>
         <li>チェックしたアカウントの全リポジトリを削除します</li>
+        <li>チェックしたアカウントが他人のリポジトリにコラボレーターとして参加している場合、そこからも退出します</li>
         <li>GitHubアカウント自体は残ります</li>
         <li>対象は user01-practice 〜 user15-practice の15アカウントに限られます</li>
       </ul>
     </div>
 
     <form method="post" action="{{ url_for('reset_github_practice_post') }}"
-          onsubmit="return confirm('チェックしたアカウントの全リポジトリを削除します。本当によいですか？')">
+          onsubmit="return confirm('チェックしたアカウントの全リポジトリを削除し、他人のリポジトリからも退出します。本当によいですか？')">
 
       <div class="toolbar">
         <button type="button" onclick="toggleAll(true)">全て選択</button>
@@ -78,14 +79,22 @@
           <div>
             <label for="acc_{{ acc.username }}" style="margin:0;">
               <span class="account-name">{{ acc.username }}</span>
-              {% if not acc.error %}<span class="repo-count">{{ acc.repos|length }}件</span>{% endif %}
+              {% if not acc.error %}
+                <span class="repo-count">所有{{ acc.repos|length }}件</span>
+                {% if acc.collab_repos %}<span class="repo-count" style="background:#fef3c7;color:#92400e;">参加{{ acc.collab_repos|length }}件</span>{% endif %}
+              {% endif %}
             </label>
             {% if acc.error %}
               <div class="repo-info error">{{ acc.error }}</div>
-            {% elif acc.repos %}
-              <div class="repo-info">{{ acc.repos|join(', ') }}</div>
             {% else %}
-              <div class="repo-info">リポジトリなし</div>
+              {% if acc.repos %}
+                <div class="repo-info">所有: {{ acc.repos|join(', ') }}</div>
+              {% else %}
+                <div class="repo-info">所有リポジトリなし</div>
+              {% endif %}
+              {% if acc.collab_repos %}
+                <div class="repo-info">参加中（退出対象）: {{ acc.collab_repos|join(', ') }}</div>
+              {% endif %}
             {% endif %}
           </div>
         </div>

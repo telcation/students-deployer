@@ -759,6 +759,42 @@ def _github_delete_repo(full_name: str, token: str) -> None:
         raise RuntimeError(f"削除失敗（{resp.status_code}）: {resp.text[:200]}")
 
 
+def _github_list_collaborator_repos(token: str) -> list[str]:
+    """他人所有だが自分がコラボレーターとして参加しているリポジトリ full_name を返す。"""
+    repos: list[str] = []
+    page = 1
+    while True:
+        resp = requests.get(
+            f"{_GITHUB_API}/user/repos",
+            headers=_github_headers(token),
+            params={"per_page": 100, "page": page, "affiliation": "collaborator"},
+            timeout=15,
+        )
+        if resp.status_code != 200:
+            raise RuntimeError(f"参加リポジトリ一覧取得失敗（{resp.status_code}）: {resp.text[:200]}")
+        batch = resp.json()
+        if not batch:
+            break
+        repos.extend(r["full_name"] for r in batch)
+        if len(batch) < 100:
+            break
+        page += 1
+        if page > 20:  # 安全弁
+            break
+    return repos
+
+
+def _github_leave_repo(full_name: str, username: str, token: str) -> None:
+    """他人所有リポジトリから自分自身（コラボレーター）を削除して退出する。"""
+    resp = requests.delete(
+        f"{_GITHUB_API}/repos/{full_name}/collaborators/{username}",
+        headers=_github_headers(token),
+        timeout=15,
+    )
+    if resp.status_code not in (204, 404):
+        raise RuntimeError(f"退出失敗（{resp.status_code}）: {resp.text[:200]}")
+
+
 @app.get(f"{URL_PREFIX}/reset_github_practice")
 @teacher_login_required
 def reset_github_practice_get():
@@ -772,15 +808,22 @@ def reset_github_practice_get():
             accounts.append({
                 "username": username,
                 "repos": [],
+                "collab_repos": [],
                 "error": "PAT未設定",
             })
             continue
         try:
             repo_full_names = _github_list_own_repos(token)
             repo_names = [f.split("/", 1)[-1] for f in repo_full_names]
-            accounts.append({"username": username, "repos": repo_names, "error": None})
+            collab_full_names = _github_list_collaborator_repos(token)
+            accounts.append({
+                "username": username,
+                "repos": repo_names,
+                "collab_repos": collab_full_names,
+                "error": None,
+            })
         except Exception as e:
-            accounts.append({"username": username, "repos": [], "error": f"取得失敗: {e}"})
+            accounts.append({"username": username, "repos": [], "collab_repos": [], "error": f"取得失敗: {e}"})
 
     return render_template("teacher_reset_github_practice.html", accounts=accounts)
 
@@ -819,10 +862,6 @@ def reset_github_practice_post():
             errors.append(f"{username}: リポジトリ一覧取得に失敗 - {e}")
             continue
 
-        if not repo_full_names:
-            logs.append(f"{username}（対象リポジトリなし）")
-            continue
-
         deleted = []
         for full_name in repo_full_names:
             try:
@@ -831,8 +870,29 @@ def reset_github_practice_post():
             except Exception as e:
                 errors.append(f"{full_name}: 削除失敗 - {e}")
 
-        if deleted:
-            logs.append(f"{username}（{len(deleted)}件: {', '.join(deleted)}）")
+        try:
+            collab_full_names = _github_list_collaborator_repos(token)
+        except Exception as e:
+            errors.append(f"{username}: 参加リポジトリ一覧取得に失敗 - {e}")
+            collab_full_names = []
+
+        left = []
+        for full_name in collab_full_names:
+            try:
+                _github_leave_repo(full_name, username, token)
+                left.append(full_name)
+            except Exception as e:
+                errors.append(f"{full_name}: 退出失敗 - {e}")
+
+        if not deleted and not left:
+            logs.append(f"{username}（対象なし）")
+        else:
+            parts = []
+            if deleted:
+                parts.append(f"削除{len(deleted)}件: {', '.join(deleted)}")
+            if left:
+                parts.append(f"退出{len(left)}件: {', '.join(left)}")
+            logs.append(f"{username}（{' / '.join(parts)}）")
 
     if errors:
         flash("一部エラー:\n" + "\n".join(errors), "error")
@@ -889,14 +949,14 @@ def _detect_mail_users() -> tuple[str, str, str, list[str]]:
 @app.get(f"{URL_PREFIX}/reset_mail")
 @teacher_login_required
 def reset_mail_get():
-    try:
-        host, _, _, mail_users = _detect_mail_users()
-    except Exception as e:
-        flash(f"メールユーザー一覧の取得に失敗: {e}", "error")
-        host, mail_users = "", []
-
-    if not host:
+    mail_users = []
+    if not (getattr(config, "MAIL_SSH_HOST", "") or "").strip():
         flash("MAIL_SSH_HOST が設定されていません", "error")
+    else:
+        try:
+            _, _, _, mail_users = _detect_mail_users()
+        except Exception as e:
+            flash(f"メールユーザー一覧の取得に失敗: {e}", "error")
 
     return render_template("teacher_reset_mail.html", mail_users=mail_users)
 
