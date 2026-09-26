@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>講師 - メールボックスリセット</title>
+  <title>講師 - 練習用GitHubアカウント初期化</title>
   <style>
     body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #f8fafc; margin: 18px; }
     .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 24px;
-            box-shadow: 0 8px 22px rgba(2,6,23,.06); max-width: 640px; margin: 40px auto; }
+            box-shadow: 0 8px 22px rgba(2,6,23,.06); max-width: 720px; margin: 40px auto; }
     .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     h1 { margin: 0; font-size: 1.2rem; }
     .btn { padding: 10px 14px; border: 0; border-radius: 12px; font-weight: 800; cursor: pointer;
@@ -30,18 +30,21 @@
                        background: #fff; color: #334155; cursor: pointer; font-weight: 700; }
     .account-list { border: 1px solid #e5e7eb; border-radius: 14px; padding: 6px 14px; margin-bottom: 16px;
                      max-height: 420px; overflow-y: auto; }
-    .account-row { display: flex; align-items: center; gap: 10px; padding: 9px 0;
+    .account-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0;
                     border-bottom: 1px solid #f1f5f9; }
     .account-row:last-child { border-bottom: none; }
-    .account-row input[type=checkbox] { width: 18px; height: 18px; flex-shrink: 0; }
+    .account-row input[type=checkbox] { margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; }
     .account-name { font-weight: 700; font-size: .95rem; }
-    .empty-note { color: #64748b; font-size: .9rem; padding: 10px 0; }
+    .repo-info { font-size: .85rem; color: #64748b; margin-top: 2px; word-break: break-word; }
+    .repo-info.error { color: #dc2626; }
+    .repo-count { display: inline-block; background: #eef2ff; color: #4338ca; border-radius: 999px;
+                   padding: 1px 9px; font-size: .78rem; font-weight: 700; margin-left: 6px; }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="header-row">
-      <h1>📧 メールボックスリセット</h1>
+      <h1>🐙 練習用GitHubアカウント初期化</h1>
       <a class="btn secondary" href="{{ url_for('teacher_menu') }}">← メニューへ</a>
     </div>
 
@@ -54,15 +57,15 @@
     <div class="warn-box">
       <p>⚠️ この操作は取り消せません。実行前に確認してください。</p>
       <ul>
-        <li>チェックしたユーザーのメールボックス内のメールをすべて削除します</li>
-        <li>アカウント（メールアドレス・パスワード）は残ります</li>
-        <li>Maildir フォルダ構造（cur/new/tmp）は保持されます</li>
-        <li>対象は user01 〜 user15 の15アカウントに限られます</li>
+        <li>チェックしたアカウントの全リポジトリを削除します</li>
+        <li>チェックしたアカウントが他人のリポジトリにコラボレーターとして参加している場合、そこからも退出します</li>
+        <li>GitHubアカウント自体は残ります</li>
+        <li>対象は user01-practice 〜 user15-practice の15アカウントに限られます</li>
       </ul>
     </div>
 
-    <form method="post" action="{{ url_for('reset_mail_post') }}"
-          onsubmit="return confirm('チェックしたユーザーのメールボックスをクリアします。本当によいですか？')">
+    <form method="post" action="{{ url_for('reset_github_practice_post') }}"
+          onsubmit="return confirm('チェックしたアカウントの全リポジトリを削除し、他人のリポジトリからも退出します。本当によいですか？')">
 
       <div class="toolbar">
         <button type="button" onclick="toggleAll(true)">全て選択</button>
@@ -70,21 +73,37 @@
       </div>
 
       <div class="account-list">
-        {% for u in mail_users %}
+        {% for acc in accounts %}
         <div class="account-row">
-          <input type="checkbox" name="accounts" value="{{ u }}" id="mu_{{ u }}">
-          <label for="mu_{{ u }}" style="margin:0;">
-            <span class="account-name">{{ u }}</span>
-          </label>
+          <input type="checkbox" name="accounts" value="{{ acc.username }}" id="acc_{{ acc.username }}">
+          <div>
+            <label for="acc_{{ acc.username }}" style="margin:0;">
+              <span class="account-name">{{ acc.username }}</span>
+              {% if not acc.error %}
+                <span class="repo-count">所有{{ acc.repos|length }}件</span>
+                {% if acc.collab_repos %}<span class="repo-count" style="background:#fef3c7;color:#92400e;">参加{{ acc.collab_repos|length }}件</span>{% endif %}
+              {% endif %}
+            </label>
+            {% if acc.error %}
+              <div class="repo-info error">{{ acc.error }}</div>
+            {% else %}
+              {% if acc.repos %}
+                <div class="repo-info">所有: {{ acc.repos|join(', ') }}</div>
+              {% else %}
+                <div class="repo-info">所有リポジトリなし</div>
+              {% endif %}
+              {% if acc.collab_repos %}
+                <div class="repo-info">参加中（退出対象）: {{ acc.collab_repos|join(', ') }}</div>
+              {% endif %}
+            {% endif %}
+          </div>
         </div>
-        {% else %}
-        <div class="empty-note">対象ユーザーが見つかりませんでした</div>
         {% endfor %}
       </div>
 
       <label for="reset_key">Reset Key</label>
       <input type="password" id="reset_key" name="reset_key" placeholder="Reset Key を入力" required autocomplete="off">
-      <button class="btn danger" type="submit">🗑 選択したユーザーのメールをクリア</button>
+      <button class="btn danger" type="submit">🗑 選択したアカウントを初期化</button>
     </form>
   </div>
 

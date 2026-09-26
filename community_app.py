@@ -213,14 +213,18 @@ def app_detail(request_id):
     if 'student_id' not in session: return redirect(url_for('login'))
     db = get_db()
     if request.method == 'POST':
+        # 検索結果画面に戻るためのクエリを、投稿後もフォームの隠しフィールドから引き継ぐ
+        q = request.form.get('q', '')
         db.execute("INSERT INTO comments (request_id, author_id, parent_id, content) VALUES (?, ?, ?, ?)",
                    (request_id, session['student_id'], request.form.get('parent_id'), request.form.get('content')))
         db.commit()
-        return redirect(url_for('app_detail', request_id=request_id))
+        return redirect(url_for('app_detail', request_id=request_id, q=q))
+    # 検索結果画面から遷移してきた場合は ?q= に検索語が入っている
+    q = request.args.get('q', '')
     # 特定のアプリ情報を取得
     app_info = requests_db.get_by_id(DATABASE, request_id)
     comments = get_comment_tree(request_id)
-    return render_template('detail.html', app=app_info, comments=comments)
+    return render_template('detail.html', app=app_info, comments=comments, q=q)
 
 
 @app.route('/app/<int:request_id>/overview', methods=['POST'])
@@ -228,6 +232,7 @@ def update_overview(request_id):
     if 'student_id' not in session:
         return redirect(url_for('login'))
 
+    q = request.form.get('q', '')
     desc = request.form.get('app_desc', '')
     ok = requests_db.update_app_desc(
         DATABASE,
@@ -236,7 +241,7 @@ def update_overview(request_id):
         app_desc=desc,
     )
     # 失敗時は他人のアプリ等。とりあえず詳細へ戻す（必要なら 403 にしてもOK）
-    return redirect(url_for('app_detail', request_id=request_id))
+    return redirect(url_for('app_detail', request_id=request_id, q=q))
 
 
 @app.route('/comment/<int:comment_id>/edit', methods=['GET', 'POST'])
@@ -249,24 +254,27 @@ def edit_comment(comment_id):
     if c is None:
         return redirect(url_for('index'))
 
+    # GET なら ?q=、POST ならフォームの隠しフィールドから引き継ぐ
+    q = request.values.get('q', '')
+
     # 本人チェック
     if str(c["author_id"]) != str(session["student_id"]):
-        return redirect(url_for('app_detail', request_id=int(c["request_id"])))
+        return redirect(url_for('app_detail', request_id=int(c["request_id"]), q=q))
 
     if request.method == 'POST':
         new_content = (request.form.get('content') or '').strip()
         if not new_content:
-            return redirect(url_for('app_detail', request_id=int(c["request_id"])))
+            return redirect(url_for('app_detail', request_id=int(c["request_id"]), q=q))
 
         db.execute(
             "UPDATE comments SET content = ?, updated_at = CURRENT_TIMESTAMP, edited = 1 WHERE comment_id = ?",
             (new_content, comment_id),
         )
         db.commit()
-        return redirect(url_for('app_detail', request_id=int(c["request_id"])))
+        return redirect(url_for('app_detail', request_id=int(c["request_id"]), q=q))
 
     # GET は編集画面（テンプレを用意）
-    return render_template('comment_edit.html', comment=dict(c))
+    return render_template('comment_edit.html', comment=dict(c), q=q)
 
 
 @app.route('/comment/<int:comment_id>/delete', methods=['POST'])
@@ -279,9 +287,11 @@ def delete_comment(comment_id):
     if c is None:
         return redirect(url_for('index'))
 
+    q = request.form.get('q', '')
+
     # 本人チェック
     if str(c["author_id"]) != str(session["student_id"]):
-        return redirect(url_for('app_detail', request_id=int(c["request_id"])))
+        return redirect(url_for('app_detail', request_id=int(c["request_id"]), q=q))
 
     req_id = int(c["request_id"])
 
@@ -303,7 +313,7 @@ def delete_comment(comment_id):
         db.execute("DELETE FROM comments WHERE comment_id = ?", (comment_id,))
 
     db.commit()
-    return redirect(url_for('app_detail', request_id=req_id))
+    return redirect(url_for('app_detail', request_id=req_id, q=q))
 
 
 if __name__ == '__main__':
