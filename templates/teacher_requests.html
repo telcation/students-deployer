@@ -189,7 +189,6 @@
     {% with msgs = get_flashed_messages(with_categories=true) %}
     {% if msgs %}
     {% for cat, msg in msgs %}
-    <!-- アカウントアップロードは teacher_accounts_manage に移動 -->
     <div class="flash {{ 'err' if cat=='err' else '' }}">{{msg}}</div>
     {% endfor %}
     {% endif %}
